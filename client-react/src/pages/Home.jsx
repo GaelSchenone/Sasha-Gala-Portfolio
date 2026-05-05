@@ -140,8 +140,10 @@ export function Home() {
         const movement = (speed * delta) / 1000
         projectsTransform.current -= movement
 
-        const slotSize = projectItemSizeRef.current + 5
-        const totalSize = slotSize * projects.length
+        const gap = isMobile ? 20 : 5
+        const marginLeft = isMobile ? 20 : 0
+        const slotSize = projectItemSizeRef.current + gap
+        const totalSize = slotSize * projects.length + marginLeft
 
         if (totalSize > 0) {
           if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
@@ -230,8 +232,10 @@ export function Home() {
       const delta = isMobile ? e.deltaX || e.deltaY : e.deltaY
       projectsTransform.current -= delta
 
-      const slotSize = projectItemSizeRef.current + 5
-      const totalSize = slotSize * projects.length
+      const gap = isMobile ? 20 : 5
+      const marginLeft = isMobile ? 20 : 0
+      const slotSize = projectItemSizeRef.current + gap
+      const totalSize = slotSize * projects.length + marginLeft
       if (totalSize > 0) {
         if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
         if (projectsTransform.current > 0) projectsTransform.current -= totalSize
@@ -259,8 +263,10 @@ export function Home() {
       lastProjectsTouch = currentPos
       projectsTransform.current += delta
 
-      const slotSize = projectItemSizeRef.current + 5
-      const totalSize = slotSize * projects.length
+      const gap = isMobile ? 20 : 5
+      const marginLeft = isMobile ? 20 : 0
+      const slotSize = projectItemSizeRef.current + gap
+      const totalSize = slotSize * projects.length + marginLeft
       if (totalSize > 0) {
         if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
         if (projectsTransform.current > 0) projectsTransform.current -= totalSize
