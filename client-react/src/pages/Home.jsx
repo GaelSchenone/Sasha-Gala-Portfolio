@@ -117,7 +117,7 @@ export function Home() {
       }
       const firstImg = imagesContainer.querySelector('img')
       if (firstImg) {
-        imageItemSizeRef.current = isMobile ? firstImg.offsetHeight : firstImg.offsetWidth
+        imageItemSizeRef.current = firstImg.offsetWidth
       }
     }
     measureSizes()
@@ -181,7 +181,7 @@ export function Home() {
       }
 
       if (isMobile) {
-        imagesContainer.style.transform = `translateY(${imagesTransform.current}px)`
+        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
       } else {
         imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
       }
@@ -280,7 +280,7 @@ export function Home() {
     const handleImagesWheel = (e) => {
       e.preventDefault()
       userDraggingImages.current = true
-      const delta = isMobile ? e.deltaY : (e.deltaX || e.deltaY)
+      const delta = isMobile ? (e.deltaX || e.deltaY) : (e.deltaX || e.deltaY)
       targetImagesTransform.current -= delta
       imagesTransform.current = targetImagesTransform.current
 
@@ -299,7 +299,7 @@ export function Home() {
       }
 
       if (isMobile) {
-        imagesContainer.style.transform = `translateY(${imagesTransform.current}px)`
+        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
       } else {
         imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
       }
@@ -310,12 +310,12 @@ export function Home() {
 
     let lastImagesTouch = 0
     const handleImagesTouchStart = (e) => {
-      lastImagesTouch = isMobile ? e.touches[0].clientY : e.touches[0].clientX
+      lastImagesTouch = e.touches[0].clientX
       userDraggingImages.current = true
     }
     const handleImagesTouchMove = (e) => {
       e.preventDefault()
-      const currentPos = isMobile ? e.touches[0].clientY : e.touches[0].clientX
+      const currentPos = e.touches[0].clientX
       const delta = currentPos - lastImagesTouch
       lastImagesTouch = currentPos
       targetImagesTransform.current += delta
@@ -336,7 +336,7 @@ export function Home() {
       }
 
       if (isMobile) {
-        imagesContainer.style.transform = `translateY(${imagesTransform.current}px)`
+        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
       } else {
         imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
       }
