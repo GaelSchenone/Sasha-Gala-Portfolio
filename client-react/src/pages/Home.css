@@ -282,15 +282,17 @@ footer .contact-links{
   }
 
   .containerwork {
-    flex: 1;
+    height: 70%;
+    background-color: rgba(0, 0, 255, 0.288);
     min-width: 0;
+  
     display: flex;
     justify-content: center;
     align-items: center;
   }
 
   .displaywork {
-    height: 100%;
+    height: auto;
     width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
@@ -311,7 +313,7 @@ footer .contact-links{
   }
 
   .carrousel-work img {
-    height: 40vh;
+    height: 100%;
     width: auto;
     max-width: 60vw;
   }

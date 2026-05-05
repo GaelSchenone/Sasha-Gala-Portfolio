@@ -258,6 +258,7 @@ export function Home() {
     }
     const handleProjectsTouchMove = (e) => {
       e.preventDefault()
+      e.stopPropagation()
       const currentPos = isMobile ? e.touches[0].clientX : e.touches[0].clientY
       const delta = currentPos - lastProjectsTouch
       lastProjectsTouch = currentPos
@@ -368,18 +369,23 @@ export function Home() {
 
     if (wrapper) {
       wrapper.addEventListener('wheel', handleProjectsWheel, { passive: false })
-      wrapper.addEventListener('touchstart', handleProjectsTouchStart, { passive: true })
+      wrapper.addEventListener('touchstart', handleProjectsTouchStart, { passive: false })
       wrapper.addEventListener('touchmove', handleProjectsTouchMove, { passive: false })
-      wrapper.addEventListener('touchend', handleProjectsTouchEnd, { passive: true })
+      wrapper.addEventListener('touchend', handleProjectsTouchEnd, { passive: false })
       wrapper.addEventListener('mouseenter', handleSidebarEnter)
       wrapper.addEventListener('mouseleave', handleSidebarLeave)
     }
 
+    // Also add touch listeners directly to projectsContainer for better mobile support
+    projectsContainer.addEventListener('touchstart', handleProjectsTouchStart, { passive: false })
+    projectsContainer.addEventListener('touchmove', handleProjectsTouchMove, { passive: false })
+    projectsContainer.addEventListener('touchend', handleProjectsTouchEnd, { passive: false })
+
     if (display) {
       display.addEventListener('wheel', handleImagesWheel, { passive: false })
-      display.addEventListener('touchstart', handleImagesTouchStart, { passive: true })
+      display.addEventListener('touchstart', handleImagesTouchStart, { passive: false })
       display.addEventListener('touchmove', handleImagesTouchMove, { passive: false })
-      display.addEventListener('touchend', handleImagesTouchEnd, { passive: true })
+      display.addEventListener('touchend', handleImagesTouchEnd, { passive: false })
       if (screenWidth > 1157) {
         display.addEventListener('mouseenter', handleImagesEnter)
         display.addEventListener('mouseleave', handleImagesLeave)
@@ -402,6 +408,9 @@ export function Home() {
         wrapper.removeEventListener('mouseenter', handleSidebarEnter)
         wrapper.removeEventListener('mouseleave', handleSidebarLeave)
       }
+      projectsContainer.removeEventListener('touchstart', handleProjectsTouchStart)
+      projectsContainer.removeEventListener('touchmove', handleProjectsTouchMove)
+      projectsContainer.removeEventListener('touchend', handleProjectsTouchEnd)
       if (display) {
         display.removeEventListener('wheel', handleImagesWheel)
         display.removeEventListener('touchstart', handleImagesTouchStart)
