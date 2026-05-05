@@ -143,7 +143,7 @@ export function Home() {
         const gap = isMobile ? 20 : 5
         const marginLeft = isMobile ? 20 : 0
         const slotSize = projectItemSizeRef.current + gap
-        const totalSize = slotSize * projects.length + marginLeft
+        const totalSize = slotSize * projects.length * 3 + marginLeft
 
         if (totalSize > 0) {
           if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
@@ -170,7 +170,7 @@ export function Home() {
         targetImagesTransform.current = imagesTransform.current
       }
 
-      const totalImageSize = imageSlotSize * filteredCount
+      const totalImageSize = imageSlotSize * filteredCount * 3
       if (totalImageSize > 0) {
         if (imagesTransform.current <= -totalImageSize) {
           imagesTransform.current += totalImageSize
@@ -235,7 +235,7 @@ export function Home() {
       const gap = isMobile ? 20 : 5
       const marginLeft = isMobile ? 20 : 0
       const slotSize = projectItemSizeRef.current + gap
-      const totalSize = slotSize * projects.length + marginLeft
+      const totalSize = slotSize * projects.length * 3 + marginLeft
       if (totalSize > 0) {
         if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
         if (projectsTransform.current > 0) projectsTransform.current -= totalSize
@@ -266,7 +266,7 @@ export function Home() {
       const gap = isMobile ? 20 : 5
       const marginLeft = isMobile ? 20 : 0
       const slotSize = projectItemSizeRef.current + gap
-      const totalSize = slotSize * projects.length + marginLeft
+      const totalSize = slotSize * projects.length * 3 + marginLeft
       if (totalSize > 0) {
         if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
         if (projectsTransform.current > 0) projectsTransform.current -= totalSize
@@ -292,7 +292,7 @@ export function Home() {
 
       const filteredCount = projectimages.filter(img => img.project_id == selectedRef.current).length
       const slotSize = imageItemSizeRef.current + 10
-      const totalSize = slotSize * filteredCount
+      const totalSize = slotSize * filteredCount * 3
       if (totalSize > 0) {
         if (imagesTransform.current <= -totalSize) {
           imagesTransform.current += totalSize
@@ -329,7 +329,7 @@ export function Home() {
 
       const filteredCount = projectimages.filter(img => img.project_id == selectedRef.current).length
       const slotSize = imageItemSizeRef.current + 10
-      const totalSize = slotSize * filteredCount
+      const totalSize = slotSize * filteredCount * 3
       if (totalSize > 0) {
         if (imagesTransform.current <= -totalSize) {
           imagesTransform.current += totalSize
