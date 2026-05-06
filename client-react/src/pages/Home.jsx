@@ -4,7 +4,34 @@ import { useNavigate } from 'react-router-dom'
 import useWindowWidth from '../componentes/useWindowWidth'
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
+import { ClickableImage } from '../componentes/ClickableImage'
 import { siteConfigService } from '../services/api'
+
+const REMOTE_IMG_BASE = 'https://sashagala.com.ar'
+
+const normalizeImageRoute = (route) => {
+  if (!route) return route
+  if (route.startsWith('/imgs/')) {
+    return `${REMOTE_IMG_BASE}${route}`
+  }
+  return route
+}
+
+const normalizeImages = (data) => {
+  if (!data) return data
+  if (Array.isArray(data)) {
+    return data.map(item => {
+      if (item.img_route) {
+        return { ...item, img_route: normalizeImageRoute(item.img_route) }
+      }
+      return item
+    })
+  }
+  if (data.img_route) {
+    return { ...data, img_route: normalizeImageRoute(data.img_route) }
+  }
+  return data
+}
 
 export function Home() {
   const [projects, setProjects] = useState([])
@@ -77,7 +104,7 @@ export function Home() {
       .then(res => res.json())
       .then(data => {
         if (data.projects) {
-          setProjects(data.projects)
+          setProjects(normalizeImages(data.projects))
           if (data.projects.length > 0) setSelected(data.projects[0].project_id)
         }
       })
@@ -88,7 +115,7 @@ export function Home() {
     fetch('/api/projectimages')
       .then(res => res.json())
       .then(data => {
-        if (data.images) setProjectImages(data.images)
+        if (data.images) setProjectImages(normalizeImages(data.images))
       })
       .catch(err => console.error('Error fetching images:', err))
   }, [])
@@ -142,7 +169,7 @@ export function Home() {
       const delta = Math.min(timestamp - lastTimestamp, 50)
       lastTimestamp = timestamp
 
-      const pauseProjects = userDraggingProjects.current || isOverSidebar.current || viewerImageRef.current || isOverImages.current
+      const pauseProjects = userDraggingProjects.current || isOverSidebar.current || viewerImageRef.current || isOverImages.current || userDraggingImages.current
       const pauseImages = userDraggingImages.current || viewerImageRef.current
 
       if (!pauseProjects) {
@@ -465,6 +492,17 @@ export function Home() {
                   {project.project_name}
                 </div>
               ))}
+              {[...projects, ...projects, ...projects].map((project, index) => (
+                <div
+                  className='project-item'
+                  key={`project-${index}`}
+                  data-key={project.project_id}
+                  style={{ fontWeight: selected === project.project_id ? 500 : 300 }}
+                  onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
+                >
+                  {project.project_name}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -473,10 +511,10 @@ export function Home() {
           <div className="displaywork">
             <div className="carrousel-work" ref={imagesContainerRef}>
               {[...filteredImages, ...filteredImages, ...filteredImages].map((image, index) => (
-                <img
+                <ClickableImage
+                  key={`image-${index}`}
                   src={image.img_route}
                   alt=""
-                  key={`image-${index}`}
                   onClick={() => handleImageClick(image)}
                 />
               ))}

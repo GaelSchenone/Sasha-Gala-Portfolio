@@ -14,17 +14,17 @@
   object-fit: cover;
   flex-shrink: 0;
 }
+.flex{
+  display: flex;
+  align-items: center;
+}
 
 @media screen and (max-width: 1157px) {
   .carrousel {
     flex-direction: row;
     padding: 20px;
     gap: 10px;
+    height: 50vh;
   }
 
-  .carrousel img {
-    height: 50vh;
-    width: auto;
-    max-width: 60vw;
-  }
 }

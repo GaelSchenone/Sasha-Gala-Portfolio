@@ -1,0 +1,8 @@
+.clickable-image {
+ transition: transform 0.1s ease-out;
+ cursor: pointer;
+}
+
+.clickable-image.pressed {
+ transform: scale(0.90);
+}

@@ -11,6 +11,7 @@
  z-index: 9999;
  cursor: pointer;
  animation: viewerFadeIn 0.2s ease-out;
+ overflow: hidden;
 }
 
 @keyframes viewerFadeIn {
@@ -19,7 +20,7 @@
 }
 
 .viewer-close {
- position: absolute;
+ position: fixed;
  top: 24px;
  right: 28px;
  background: none;
@@ -27,7 +28,7 @@
  color: white;
  font-size: 28px;
  cursor: pointer;
- z-index: 10000;
+ z-index: 10001;
  opacity: 0.7;
  transition: opacity 0.15s;
  padding: 8px;
@@ -38,10 +39,42 @@
  opacity: 1;
 }
 
+.viewer-reset {
+ position: fixed;
+ bottom: 24px;
+ left: 50%;
+ transform: translateX(-50%);
+ background: rgba(255, 255, 255, 0.2);
+ border: none;
+ color: white;
+ font-size: 24px;
+ cursor: pointer;
+ z-index: 10001;
+ padding: 12px 16px;
+ border-radius: 50%;
+ transition: background 0.15s;
+}
+
+.viewer-reset:hover {
+ background: rgba(255, 255, 255, 0.3);
+}
+
+.viewer-image-container {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ width: 100vw;
+ height: 100vh;
+ overflow: hidden;
+ touch-action: none;
+}
+
 .viewer-image {
  max-width: 90vw;
  max-height: 90vh;
  object-fit: contain;
- cursor: default;
  border-radius: 2px;
+ transition: transform 0.1s ease-out;
+ will-change: transform;
+ pointer-events: none;
 }
