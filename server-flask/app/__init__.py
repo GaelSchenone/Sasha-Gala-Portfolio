@@ -27,3 +27,6 @@ def create_app():
         return jsonify({'status': 'ok'})
 
     return app
+
+# Create app instance for gunicorn
+app = create_app()
