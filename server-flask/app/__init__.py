@@ -7,7 +7,7 @@ from .database import init_db
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, origins=["https://sashagala.com.ar"], supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": "*"}})
     init_db(app)
 
     from .routes.api import api_bp
