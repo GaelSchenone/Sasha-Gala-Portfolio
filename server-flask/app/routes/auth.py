@@ -50,9 +50,6 @@ def google_login():
             google_requests.Request(),
             Config.GOOGLE_CLIENT_ID
         )
-    except ValueError as e:
-        print(f"ValueError: {e}", flush=True)
-        return jsonify({'error': 'Invalid Google token', 'detail': str(e)}), 400
 
         email = idinfo['email']
         name = idinfo.get('name', '')
@@ -82,5 +79,6 @@ def google_login():
             'user': {'email': email, 'name': name}
         })
 
-    except ValueError:
-        return jsonify({'error': 'Invalid Google token'}), 400
+    except ValueError as e:
+        print(f"ValueError: {e}", flush=True)
+        return jsonify({'error': 'Invalid Google token', 'detail': str(e)}), 400
