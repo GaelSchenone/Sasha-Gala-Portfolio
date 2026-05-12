@@ -35,12 +35,14 @@ def token_required(f):
 
 @auth_bp.route('/google-login', methods=['POST', 'OPTIONS'])
 def google_login():
-    # Handle preflight request
     if request.method == 'OPTIONS':
         return '', 200
 
     data = request.get_json()
     token = data.get('token')
+
+    # Logging temporal
+    print(f"Token recibido: {token[:20] if token else 'VACIO/NONE'}", flush=True)
 
     try:
         idinfo = id_token.verify_oauth2_token(
@@ -48,6 +50,9 @@ def google_login():
             google_requests.Request(),
             Config.GOOGLE_CLIENT_ID
         )
+    except ValueError as e:
+        print(f"ValueError: {e}", flush=True)
+        return jsonify({'error': 'Invalid Google token', 'detail': str(e)}), 400
 
         email = idinfo['email']
         name = idinfo.get('name', '')
