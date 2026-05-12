@@ -7,7 +7,7 @@ from .database import init_db
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    CORS(app, resources={r"/*": {"origins": Config.ALLOWED_ORIGINS}})
     init_db(app)
 
     from .routes.api import api_bp
@@ -15,6 +15,11 @@ def create_app():
 
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+        return response
 
     # Debug: print registered routes
     @app.route('/debug-routes')
