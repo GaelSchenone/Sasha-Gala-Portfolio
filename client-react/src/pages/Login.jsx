@@ -61,7 +61,9 @@ export function Login() {
         <GoogleLogin
           onSuccess={handleSuccess}
           onError={handleError}
-          useOneTap
+          useOneTap={false}
+          itp_support={false}
+          use_fedcm_for_prompt={false}
           theme="outline"
           shape="rectangular"
         />
