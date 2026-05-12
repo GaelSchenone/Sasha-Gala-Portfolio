@@ -12,7 +12,8 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Build
+ARG VITE_API_URL
+ARG VITE_IMG_BASE
 RUN npm run build
 
 # Production stage with nginx
