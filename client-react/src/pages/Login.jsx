@@ -4,6 +4,7 @@ import { Header } from '../componentes/Header';
 import './About.css'; // Podemos reusar estilos o crear Login.css
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '360817230688-cspob8r0r4ha48llneh0jepf3pbpf4mj.apps.googleusercontent.com';
 
 export function Login() {
   const navigate = useNavigate();
@@ -60,6 +61,7 @@ export function Login() {
         <p style={{ color: '#666', marginBottom: '10px' }}>Inicia sesión para gestionar el portfolio</p>
         
         <GoogleLogin
+          clientId={GOOGLE_CLIENT_ID}
           onSuccess={handleSuccess}
           onError={handleError}
           useOneTap={false}

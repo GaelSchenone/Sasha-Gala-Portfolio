@@ -29,6 +29,10 @@ class Config:
     _admin_emails = os.getenv('ADMIN_EMAILS', 'gaelsantos034@gmail.com')
     ALLOWED_ADMINS = [e.strip() for e in _admin_emails.split(',') if e.strip()]
 
+    # CORS allowed origins
+    _allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,https://sasha.aguilucho.ar')
+    ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins.split(',') if o.strip()]
+
     # JWT
     JWT_SECRET = os.getenv('JWT_SECRET', 'dev_jwt_key_change_in_production')
 
