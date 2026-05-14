@@ -1,0 +1,15 @@
+# Exclude everything not needed for Flask backend
+client-react/
+.claude/
+.git/
+.env
+.env.local
+*.md
+LICENSE
+build.sh
+docker-compose.yml
+db_dump.sql
+db_dump_compat.sql
+server-flask/uploads/
+server-flask/__pycache__/
+server-flask/**/*.pyc
