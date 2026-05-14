@@ -22,4 +22,4 @@ RUN mkdir -p uploads
 EXPOSE 5000
 
 # Run the application
-CMD ["gunicorn", "run:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120"]
+CMD ["sleep", "infinity"]
