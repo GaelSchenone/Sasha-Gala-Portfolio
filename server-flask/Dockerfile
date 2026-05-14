@@ -26,5 +26,6 @@ ENV IN_DOCKER=true
 # Expose port
 EXPOSE 5000
 
-# Run the application
-CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "--access-logfile", "-"]
+# Run the application — use PORT env var if set (Dokploy), fallback to 5000
+ENV PORT=5000
+CMD ["sh", "-c", "gunicorn wsgi:app --bind 0.0.0.0:${PORT} --workers 1 --timeout 120 --access-logfile -"]
