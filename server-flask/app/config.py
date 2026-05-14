@@ -10,8 +10,8 @@ if not os.path.exists(_env_path):
     _env_path = os.path.join(_project_root, '.env')
 load_dotenv(_env_path)
 
-# Detect production (Docker container)
-_in_docker = os.path.exists('/.dockerenv')
+# Detect production — /.dockerenv may not exist in all runtimes, also check WORKDIR convention
+_in_docker = os.path.exists('/.dockerenv') or os.path.exists('/app/.dockerenv') or os.getenv('IN_DOCKER', '').lower() == 'true'
 
 
 class Config:

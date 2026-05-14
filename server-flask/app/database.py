@@ -6,24 +6,32 @@ db_pool = None
 
 def init_db(app):
     global db_pool
+    db_name = Config.DB_NAME
+    # Escape database name with hyphens for MySQL/MariaDB compatibility
+    if '-' in db_name and not db_name.startswith('`'):
+        db_name_escaped = f'`{db_name}`'
+    else:
+        db_name_escaped = db_name
+
     db_config = {
         "user": Config.DB_USER,
         "password": Config.DB_PASSWORD,
         "host": Config.DB_HOST,
         "port": Config.DB_PORT,
-        "database": Config.DB_NAME,
-        "connect_timeout": 5,
+        "database": db_name,
+        "connect_timeout": 10,
+        "pool_name": "mypool",
+        "pool_size": 5,
     }
 
+    app.logger.info(f"Connecting to DB: {Config.DB_USER}@{Config.DB_HOST}:{Config.DB_PORT}/{db_name}")
+
     try:
-        db_pool = mysql.connector.pooling.MySQLConnectionPool(
-            pool_name="mypool",
-            pool_size=5,
-            **db_config
-        )
+        db_pool = mysql.connector.pooling.MySQLConnectionPool(**db_config)
         app.logger.info("Database pool initialized successfully")
     except mysql.connector.Error as err:
         app.logger.error(f"Error initializing database pool: {err}")
+        raise
 
 
 def get_db_connection():

@@ -1,14 +1,19 @@
 import os
 from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
-from .config import Config
+from .config import Config, _in_docker
 from .database import init_db
 
 
 def create_app():
     app = Flask(__name__)
+    app.config['SECRET_KEY'] = Config.SECRET_KEY
     CORS(app, resources={r"/*": {"origins": Config.ALLOWED_ORIGINS}})
-    init_db(app)
+
+    try:
+        init_db(app)
+    except Exception as e:
+        app.logger.warning(f"Database not available at startup: {e}. App will start but DB queries will fail.")
 
     from .routes.api import api_bp
     from .routes.auth import auth_bp
@@ -41,7 +46,16 @@ def create_app():
     # Health check
     @app.route('/health')
     def health():
-        return jsonify({'status': 'ok'})
+        from .database import db_pool
+        db_status = 'connected' if db_pool else 'disconnected'
+        return jsonify({
+            'status': 'ok',
+            'db': db_status,
+            'upload_folder': Config.UPLOAD_FOLDER,
+            'project_root': Config.PROJECT_ROOT,
+            'in_docker': _in_docker,
+            'debug': Config.DEBUG,
+        })
 
     return app
 
