@@ -1,0 +1,14 @@
+[phases.setup]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npx serve dist -s -l 80"
+
+[variables]
+VITE_API_URL = "https://sasha-api.aguilucho.ar/api"
+VITE_IMG_BASE = "https://sasha-api.aguilucho.ar"
