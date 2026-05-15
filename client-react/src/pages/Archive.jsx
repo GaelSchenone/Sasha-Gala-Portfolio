@@ -1,35 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
-import './Home.css' // Reutilizamos el estilo
-import './Archive.css' // Reutilizamos el estilo
+import './Home.css'
+import './Archive.css'
 import useWindowWidth from '../componentes/useWindowWidth';
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
 import { BASE_URL } from '../services/api'
-
-const normalizeImageRoute = (route) => {
-  if (!route) return route
-  // Full URLs (Cloudinary CDN) are returned as-is
-  if (route.startsWith('http://') || route.startsWith('https://')) return route
-  // Legacy /imgs/ routes - no longer served after Cloudinary migration
-  return route
-}
-
-const normalizeImages = (data) => {
-  if (!data) return data
-  if (Array.isArray(data)) {
-    return data.map(item => {
-      if (item.img_route) {
-        return { ...item, img_route: normalizeImageRoute(item.img_route) }
-      }
-      return item
-    })
-  }
-  if (data.img_route) {
-    return { ...data, img_route: normalizeImageRoute(data.img_route) }
-  }
-  return data
-}
 
 export function Archive() {
   const [archiveImages, setArchiveImages] = useState([])
@@ -49,7 +25,7 @@ export function Archive() {
       .then((res) => res.json())
       .then((data) => {
         if (data.images) {
-          setArchiveImages(normalizeImages(data.images))
+          setArchiveImages(data.images)
         }
       })
       .catch((error) => console.error('Error fetching archive:', error))
@@ -59,11 +35,10 @@ export function Archive() {
     if (!imagesContainerRef.current || archiveImages.length === 0) return
 
     const container = imagesContainerRef.current
-    const isMobile = screenWidth <= 1157
     let animationId = null
     let lastTime = Date.now()
 
-    // Arrancar con offset para que no se vea el borde izquierdo de la primera imagen
+    // Start with offset so first image border is not visible
     requestAnimationFrame(() => {
       const firstImg = container.querySelector('img')
       if (firstImg) {
@@ -103,11 +78,7 @@ export function Archive() {
         }
       }
 
-      if (isMobile) {
-        container.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        container.style.transform = `translateX(${imagesTransform.current}px)`
-      }
+      container.style.transform = `translateX(${imagesTransform.current}px)`
 
       animationId = requestAnimationFrame(animate)
     }
@@ -125,17 +96,59 @@ export function Archive() {
       }, 2000)
     }
 
+    let lastTouch = 0
+    const handleTouchStart = (e) => {
+      lastTouch = e.touches[0].clientX
+      userDraggingImages.current = true
+    }
+    const handleTouchMove = (e) => {
+      e.preventDefault()
+      const currentPos = e.touches[0].clientX
+      const delta = currentPos - lastTouch
+      lastTouch = currentPos
+      targetImagesTransform.current += delta
+      imagesTransform.current = targetImagesTransform.current
+
+      const firstImg = container.querySelector('img')
+      if (firstImg) {
+        const itemSize = firstImg.offsetWidth
+        const totalSize = itemSize * archiveImages.length * 3
+        if (imagesTransform.current <= -totalSize) {
+          imagesTransform.current += totalSize
+          targetImagesTransform.current += totalSize
+        }
+        if (imagesTransform.current > 0) {
+          imagesTransform.current -= totalSize
+          targetImagesTransform.current -= totalSize
+        }
+      }
+
+      container.style.transform = `translateX(${imagesTransform.current}px)`
+    }
+    const handleTouchEnd = () => {
+      clearTimeout(imagesDragTimeout.current)
+      imagesDragTimeout.current = setTimeout(() => {
+        userDraggingImages.current = false
+      }, 2000)
+    }
+
     animate()
 
     const display = container.closest('.displaywork')
     if (display) {
       display.addEventListener('wheel', handleWheel, { passive: false })
+      display.addEventListener('touchstart', handleTouchStart, { passive: false })
+      display.addEventListener('touchmove', handleTouchMove, { passive: false })
+      display.addEventListener('touchend', handleTouchEnd, { passive: false })
     }
 
     return () => {
       if (animationId) cancelAnimationFrame(animationId)
       if (display) {
         display.removeEventListener('wheel', handleWheel)
+        display.removeEventListener('touchstart', handleTouchStart)
+        display.removeEventListener('touchmove', handleTouchMove)
+        display.removeEventListener('touchend', handleTouchEnd)
       }
     }
   }, [archiveImages, screenWidth])
@@ -150,7 +163,6 @@ export function Archive() {
         <div className="containerwork" style={{ width: '100%', height: '100%' }}>
           <div className="displaywork flex" style={{ overflow: 'hidden', width: '100%', height: '100%' }}>
             <div className="carrousel" ref={imagesContainerRef} style={{ display: 'flex' }}>
-              {/* Renderizar 3 copias para scroll infinito */}
               {[...archiveImages, ...archiveImages, ...archiveImages].map((image, index) => (
                 <ClickableImage
                   key={`archive-${index}`}
