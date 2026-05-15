@@ -1,11 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://sasha-api.aguilucho.ar/api';
-const REMOTE_IMG_BASE = import.meta.env.VITE_IMG_BASE || 'https://sasha-api.aguilucho.ar';
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 
 const normalizeImageRoute = (route) => {
   if (!route) return route;
-  if (route.startsWith('/imgs/')) {
-    return `${REMOTE_IMG_BASE}${route}`;
-  }
+  // Already a full URL (Cloudinary or any CDN) - return as-is
+  if (route.startsWith('http://') || route.startsWith('https://')) return route;
+  // Legacy /imgs/ routes - no longer served by backend after Cloudinary migration
   return route;
 };
 

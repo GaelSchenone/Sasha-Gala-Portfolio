@@ -1,5 +1,5 @@
 import os
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
 from .config import Config, _in_docker
 from .database import init_db
@@ -7,7 +7,7 @@ from .database import init_db
 
 def create_app():
     print(f"[STARTUP] Creating Flask app | IN_DOCKER={_in_docker} | DEBUG={Config.DEBUG}", flush=True)
-    print(f"[STARTUP] UPLOAD_FOLDER={Config.UPLOAD_FOLDER} | PROJECT_ROOT={Config.PROJECT_ROOT}", flush=True)
+    print(f"[STARTUP] CLOUDINARY_CLOUD_NAME={Config.CLOUDINARY_CLOUD_NAME} | PROJECT_ROOT={Config.PROJECT_ROOT}", flush=True)
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = Config.SECRET_KEY
@@ -26,11 +26,6 @@ def create_app():
         response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
         return response
 
-    # Serve uploaded project images
-    @app.route('/imgs/<filename>')
-    def serve_project_image(filename):
-        return send_from_directory(Config.UPLOAD_FOLDER, filename)
-
     # Health check
     @app.route('/health')
     def health():
@@ -39,12 +34,11 @@ def create_app():
         return jsonify({
             'status': 'ok',
             'db': db_status,
-            'upload_folder': Config.UPLOAD_FOLDER,
-            'project_root': Config.PROJECT_ROOT,
             'in_docker': _in_docker,
             'debug': Config.DEBUG,
             'db_host': Config.DB_HOST,
             'db_name': Config.DB_NAME,
+            'cloudinary': bool(Config.CLOUDINARY_CLOUD_NAME),
         })
 
     print("[STARTUP] Flask app created successfully", flush=True)

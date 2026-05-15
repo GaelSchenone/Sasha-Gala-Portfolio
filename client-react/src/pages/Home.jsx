@@ -7,13 +7,11 @@ import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
 import { siteConfigService } from '../services/api'
 
-const REMOTE_IMG_BASE = import.meta.env.VITE_IMG_BASE || 'https://sashagala.com.ar'
-
 const normalizeImageRoute = (route) => {
   if (!route) return route
-  if (route.startsWith('/imgs/')) {
-    return `${REMOTE_IMG_BASE}${route}`
-  }
+  // Full URLs (Cloudinary CDN) are returned as-is
+  if (route.startsWith('http://') || route.startsWith('https://')) return route
+  // Legacy /imgs/ routes - no longer served after Cloudinary migration
   return route
 }
 

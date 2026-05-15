@@ -11,4 +11,4 @@ cmd = "npx serve dist -s -l 80"
 
 [variables]
 VITE_API_URL = "https://sasha-api.aguilucho.ar/api"
-VITE_IMG_BASE = "https://sasha-api.aguilucho.ar"
+VITE_CLOUDINARY_CLOUD_NAME = ""

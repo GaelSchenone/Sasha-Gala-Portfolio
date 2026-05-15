@@ -1,19 +1,28 @@
 import os
 import json
 import uuid
+import cloudinary
+import cloudinary.uploader
 from flask import Blueprint, jsonify, request, current_app
 from app.database import execute_query
 from app.routes.auth import token_required
 from app.config import Config
 from werkzeug.utils import secure_filename
-from PIL import Image
 
 api_bp = Blueprint('api', __name__)
 
-UPLOAD_FOLDER = Config.UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Configure Cloudinary from CLOUDINARY_URL or individual vars
+if Config.CLOUDINARY_URL:
+    cloudinary.config(cloudinary_url=Config.CLOUDINARY_URL, secure=True)
+elif Config.CLOUDINARY_CLOUD_NAME:
+    cloudinary.config(
+        cloud_name=Config.CLOUDINARY_CLOUD_NAME,
+        api_key=os.getenv('CLOUDINARY_API_KEY', ''),
+        api_secret=os.getenv('CLOUDINARY_API_SECRET', ''),
+        secure=True,
+    )
 
 
 def allowed_file(filename):
@@ -28,6 +37,28 @@ def parse_layout_json(project):
             project['layout_json'] = {"sections": []}
     elif not project.get('layout_json'):
         project['layout_json'] = {"sections": []}
+
+
+def upload_to_cloudinary(file_bytes, public_id):
+    """Upload image bytes to Cloudinary with auto format/quality."""
+    result = cloudinary.uploader.upload(
+        file_bytes,
+        public_id=public_id,
+        folder="sasha-portfolio",
+        overwrite=True,
+        transformation=[
+            {"quality": "auto", "fetch_format": "auto"},
+        ],
+    )
+    return result
+
+
+def delete_from_cloudinary(public_id):
+    """Delete an image from Cloudinary by public_id."""
+    try:
+        cloudinary.uploader.destroy(public_id)
+    except Exception:
+        pass
 
 
 # ── READ ──────────────────────────────────────────────────────
@@ -112,9 +143,9 @@ def get_project_by_name(project_name):
 def get_project_images():
     images = execute_query(
         """SELECT i.* FROM images i
-           JOIN proyectos p ON i.project_id = p.project_id
-           WHERE i.status_id = 1 AND p.status = 'published'
-           ORDER BY i.project_id, i.display_order ASC"""
+        JOIN proyectos p ON i.project_id = p.project_id
+        WHERE i.status_id = 1 AND p.status = 'published'
+        ORDER BY i.project_id, i.display_order ASC"""
     )
     return jsonify({'images': images}) if images is not None else (jsonify({'error': 'DB Error'}), 500)
 
@@ -125,8 +156,8 @@ def get_project_images():
 def get_archive():
     images = execute_query(
         """SELECT * FROM images
-           WHERE status_id = 3
-           ORDER BY display_order ASC"""
+        WHERE status_id = 3
+        ORDER BY display_order ASC"""
     )
     return jsonify({'images': images or []})
 
@@ -142,17 +173,12 @@ def upload_archive_image():
     if not base:
         base = str(uuid.uuid4())[:8]
     unique_id = uuid.uuid4().hex[:8]
-    webp_filename = f"{base}_archive_{unique_id}.webp"
-    filepath = os.path.join(UPLOAD_FOLDER, webp_filename)
+    public_id = f"sasha-portfolio/{base}_archive_{unique_id}"
 
     try:
-        img = Image.open(file)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        img.thumbnail((2500, 2500), Image.Resampling.LANCZOS)
-        img.save(filepath, "WEBP", quality=95)
-
-        img_route = f"/imgs/{webp_filename}"
+        result = upload_to_cloudinary(file.read(), public_id)
+        img_url = result['secure_url']
+        cloudinary_pid = result['public_id']
 
         # Get max display_order
         max_order = execute_query(
@@ -162,12 +188,12 @@ def upload_archive_image():
         next_order = (max_order['max_o'] + 1) if max_order else 1
 
         new_id = execute_query(
-            "INSERT INTO images (img_route, project_id, status_id, display_order) VALUES (%s, NULL, 3, %s)",
-            (img_route, next_order)
+            "INSERT INTO images (img_route, cloudinary_public_id, project_id, status_id, display_order) VALUES (%s, %s, NULL, 3, %s)",
+            (img_url, cloudinary_pid, next_order)
         )
 
         return jsonify({
-            'image': {'img_id': new_id, 'img_route': img_route, 'display_order': next_order}
+            'image': {'img_id': new_id, 'img_route': img_url, 'display_order': next_order}
         }), 201
 
     except Exception as e:
@@ -237,7 +263,7 @@ def update_site_config():
     if result is None:
         return jsonify({'error': 'DB Error'}), 500
 
-    return jsonify({'message': 'Configuración actualizada'})
+    return jsonify({'message': 'Configuracion actualizada'})
 
 
 # ── CREATE ──────────────────────────────────────────────────────
@@ -314,7 +340,7 @@ def update_project(project_id):
 @token_required
 def delete_project(project_id):
     images = execute_query(
-        "SELECT img_route FROM images WHERE project_id = %s",
+        "SELECT img_route, cloudinary_public_id FROM images WHERE project_id = %s",
         (project_id,)
     )
 
@@ -327,15 +353,9 @@ def delete_project(project_id):
 
     if images:
         for img in images:
-            route = img.get('img_route', '')
-            if route.startswith('/imgs/'):
-                filename = route.replace('/imgs/', '')
-                filepath = os.path.join(UPLOAD_FOLDER, filename)
-                if os.path.exists(filepath):
-                    try:
-                        os.remove(filepath)
-                    except OSError:
-                        pass
+            pid = img.get('cloudinary_public_id')
+            if pid:
+                delete_from_cloudinary(pid)
 
     return jsonify({'message': 'Eliminado'})
 
@@ -355,27 +375,22 @@ def upload_file():
     if not base:
         base = str(uuid.uuid4())[:8]
     unique_id = uuid.uuid4().hex[:8]
-    webp_filename = f"{base}_{project_id}_{unique_id}.webp"
-    filepath = os.path.join(UPLOAD_FOLDER, webp_filename)
+    public_id = f"sasha-portfolio/{base}_{project_id}_{unique_id}"
 
     try:
-        img = Image.open(file)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        img.thumbnail((2500, 2500), Image.Resampling.LANCZOS)
-        img.save(filepath, "WEBP", quality=95)
-
-        img_route = f"/imgs/{webp_filename}"
+        result = upload_to_cloudinary(file.read(), public_id)
+        img_url = result['secure_url']
+        cloudinary_pid = result['public_id']
 
         new_id = execute_query(
-            "INSERT INTO images (img_route, project_id, status_id) VALUES (%s, %s, 1)",
-            (img_route, project_id)
+            "INSERT INTO images (img_route, cloudinary_public_id, project_id, status_id) VALUES (%s, %s, %s, 1)",
+            (img_url, cloudinary_pid, project_id)
         )
 
         return jsonify({
             'image': {
                 'img_id': new_id,
-                'img_route': img_route
+                'img_route': img_url
             }
         }), 201
 
@@ -390,7 +405,7 @@ def upload_file():
 @token_required
 def delete_image(img_id):
     img = execute_query(
-        "SELECT img_route FROM images WHERE img_id = %s",
+        "SELECT img_route, cloudinary_public_id FROM images WHERE img_id = %s",
         (img_id,), fetch_one=True
     )
     if not img:
@@ -400,14 +415,8 @@ def delete_image(img_id):
     if result is None:
         return jsonify({'error': 'DB Error'}), 500
 
-    route = img.get('img_route', '')
-    if route.startswith('/imgs/'):
-        filename = route.replace('/imgs/', '')
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except OSError:
-                pass
+    pid = img.get('cloudinary_public_id')
+    if pid:
+        delete_from_cloudinary(pid)
 
     return jsonify({'message': 'Imagen eliminada'})

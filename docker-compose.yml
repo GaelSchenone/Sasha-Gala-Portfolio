@@ -11,7 +11,6 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - SERVER_PORT=5000
       - PROJECT_ROOT=/app
-      - UPLOAD_FOLDER=/app/uploads
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - JWT_SECRET=${JWT_SECRET}
@@ -23,8 +22,10 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - IN_DOCKER=true
       - DEBUG=False
-    volumes:
-      - uploads:/app/uploads
+      - CLOUDINARY_URL=${CLOUDINARY_URL}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     restart: unless-stopped
     networks:
       - sasha-portfolio
@@ -36,16 +37,13 @@ services:
       - "80:80"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
-      - VITE_IMG_BASE=${VITE_IMG_BASE:-http://localhost:5000}
+      - VITE_CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     depends_on:
       - flask-api
     restart: unless-stopped
     networks:
       - sasha-portfolio
-
-volumes:
-  uploads:
 
 networks:
   sasha-portfolio:

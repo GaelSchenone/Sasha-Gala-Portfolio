@@ -2,7 +2,7 @@ import os
 import warnings
 from dotenv import load_dotenv
 
-# Load .env — try project root first (dev), then same dir as app/ (prod)
+# Load .env - try project root first (dev), then same dir as app/ (prod)
 _server_dir = os.path.dirname(os.path.dirname(__file__))
 _project_root = os.path.dirname(_server_dir)
 _env_path = os.path.join(_server_dir, '.env')
@@ -10,7 +10,7 @@ if not os.path.exists(_env_path):
     _env_path = os.path.join(_project_root, '.env')
 load_dotenv(_env_path)
 
-# Detect production — /.dockerenv may not exist in all runtimes, also check WORKDIR convention
+# Detect production - /.dockerenv may not exist in all runtimes, also check WORKDIR convention
 _in_docker = os.path.exists('/.dockerenv') or os.path.exists('/app/.dockerenv') or os.getenv('IN_DOCKER', '').lower() == 'true'
 
 
@@ -22,11 +22,11 @@ class Config:
     DB_PORT = int(os.getenv('DB_PORT', '3306'))
     DB_NAME = os.getenv('DB_NAME', 'testpy')
 
-    # Flask — fail loudly if SECRET_KEY missing in production
+    # Flask - fail loudly if SECRET_KEY missing in production
     SECRET_KEY = os.getenv('SECRET_KEY')
     if not SECRET_KEY:
         if _in_docker:
-            warnings.warn("SECRET_KEY not set — using insecure default. Set it in your environment!", stacklevel=2)
+            warnings.warn("SECRET_KEY not set - using insecure default. Set it in your environment!", stacklevel=2)
             SECRET_KEY = 'INSECURE-CHANGE-ME'
         else:
             SECRET_KEY = 'dev_key_sasha_portfolio_2024'
@@ -44,11 +44,11 @@ class Config:
     _allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,https://sasha.aguilucho.ar')
     ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins.split(',') if o.strip()]
 
-    # JWT — fail loudly if JWT_SECRET missing in production
+    # JWT - fail loudly if JWT_SECRET missing in production
     JWT_SECRET = os.getenv('JWT_SECRET')
     if not JWT_SECRET:
         if _in_docker:
-            warnings.warn("JWT_SECRET not set — using insecure default. Set it in your environment!", stacklevel=2)
+            warnings.warn("JWT_SECRET not set - using insecure default. Set it in your environment!", stacklevel=2)
             JWT_SECRET = 'INSECURE-CHANGE-ME'
         else:
             JWT_SECRET = 'dev_jwt_key_change_in_production'
@@ -62,8 +62,6 @@ class Config:
     # Static folder for React build
     STATIC_FOLDER = os.getenv('DIST_FOLDER', os.path.join(PROJECT_ROOT, 'client-react', 'dist'))
 
-    # Upload folder — always resolve to a safe default inside the container
-    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER') or (
-        '/app/uploads' if _in_docker
-        else os.path.join(PROJECT_ROOT, 'client-react', 'public', 'imgs')
-    )
+    # Cloudinary
+    CLOUDINARY_URL = os.getenv('CLOUDINARY_URL', '')
+    CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '')
