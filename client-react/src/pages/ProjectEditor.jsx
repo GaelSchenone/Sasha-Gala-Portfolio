@@ -7,13 +7,16 @@ import './View.css';
 
 const emptyLayout = () => ({ sections: [], layoutGap: 20 });
 
+let _secId = 0;
+const newSectionId = () => `sec-${Date.now()}-${++_secId}`;
+
 const newSection = () => ({
-  id: crypto.randomUUID(),
+  id: newSectionId(),
   columns: 1,
   gap: 0,
   height: 400,
   autoHeight: false,
-  rows: [[]],
+  rows: [[null]],
 });
 
 const newRow = (cols) => Array(cols).fill(null);
