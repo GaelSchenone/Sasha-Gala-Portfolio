@@ -11,6 +11,7 @@ def create_app():
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = Config.SECRET_KEY
+    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
     CORS(app, resources={r"/*": {"origins": Config.ALLOWED_ORIGINS}})
 
     init_db(app)

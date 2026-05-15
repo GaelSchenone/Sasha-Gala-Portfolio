@@ -62,11 +62,11 @@ const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
-const uploadWithAuth = (url, formData) => {
+const uploadWithAuth = (endpoint, formData) => {
   const token = localStorage.getItem('adminToken');
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(url, {
+  return fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers,
     body: formData,
@@ -125,7 +125,7 @@ export const projectService = {
   delete: (id) => apiFetch(`/projects/${id}`, { method: 'DELETE' }),
   update: (id, data) => apiFetch(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteImage: (imgId) => apiFetch(`/images/${imgId}`, { method: 'DELETE' }),
-  uploadImage: (formData) => uploadWithAuth('/api/upload', formData),
+  uploadImage: (formData) => uploadWithAuth('/upload', formData),
 };
 
 export const archiveService = {
@@ -135,7 +135,7 @@ export const archiveService = {
     }
     return data;
   }),
-  upload: (formData) => uploadWithAuth('/api/archive', formData),
+  upload: (formData) => uploadWithAuth('/archive', formData),
   reorder: (items) => apiFetch('/archive/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
   deleteImage: (imgId) => apiFetch(`/images/${imgId}`, { method: 'DELETE' }),
 };
