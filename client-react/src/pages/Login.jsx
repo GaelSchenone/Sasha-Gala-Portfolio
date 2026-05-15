@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../componentes/Header';
 import './About.css'; // Podemos reusar estilos o crear Login.css
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://sasha-api.aguilucho.ar/api';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '360817230688-cspob8r0r4ha48llneh0jepf3pbpf4mj.apps.googleusercontent.com';
 
 export function Login() {
