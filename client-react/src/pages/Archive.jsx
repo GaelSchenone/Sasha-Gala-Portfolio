@@ -5,6 +5,7 @@ import useWindowWidth from '../componentes/useWindowWidth';
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
+import { BASE_URL } from '../services/api'
 
 const normalizeImageRoute = (route) => {
   if (!route) return route
@@ -44,7 +45,7 @@ export function Archive() {
   const closeViewer = () => setViewerImage(null)
 
   useEffect(() => {
-    fetch('/api/archive', { headers: { 'ngrok-skip-browser-warning': 'true' } })
+    fetch(`${BASE_URL}/archive`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
       .then((res) => res.json())
       .then((data) => {
         if (data.images) {

@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://sasha-api.aguilucho.ar/api';
+export const BASE_URL = import.meta.env.VITE_API_URL || 'https://sasha-api.aguilucho.ar/api';
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 
 const normalizeImageRoute = (route) => {

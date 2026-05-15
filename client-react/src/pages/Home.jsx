@@ -5,7 +5,7 @@ import useWindowWidth from '../componentes/useWindowWidth'
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
-import { siteConfigService } from '../services/api'
+import { siteConfigService, BASE_URL } from '../services/api'
 
 const normalizeImageRoute = (route) => {
   if (!route) return route
@@ -99,7 +99,7 @@ export function Home() {
   const screenWidth = useWindowWidth()
 
   useEffect(() => {
-    fetch('/api/projects?status=published')
+    fetch(`${BASE_URL}/projects?status=published`)
       .then(res => res.json())
       .then(data => {
         if (data.projects) {
@@ -111,7 +111,7 @@ export function Home() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/projectimages')
+    fetch(`${BASE_URL}/projectimages`)
       .then(res => res.json())
       .then(data => {
         if (data.images) setProjectImages(normalizeImages(data.images))
