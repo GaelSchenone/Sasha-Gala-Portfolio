@@ -536,7 +536,7 @@ export function Home() {
       <footer>
         <div className="contact-links">
           {siteLinks.map((link, i) => (
-            <a key={i} href={link.url.startsWith("http") ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer">{link.title}</a>
+            <a key={i} href={link.url.startsWith("http") || link.url.startsWith("mailto:") ? link.url : `https://${link.url}`} target={link.url.startsWith("mailto:") ? undefined : "_blank"} rel={link.url.startsWith("mailto:") ? undefined : "noopener noreferrer"}>{link.title}</a>
           ))}
         </div>
       </footer>
