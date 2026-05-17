@@ -140,7 +140,20 @@ export const archiveService = {
   deleteImage: (imgId) => apiFetch(`/images/${imgId}`, { method: 'DELETE' }),
 };
 
+const SITE_CONFIG_CACHE_KEY = 'sasha_site_config'
+
 export const siteConfigService = {
   get: () => apiFetch('/site-config'),
   update: (configData) => apiFetch('/site-config', { method: 'PUT', body: JSON.stringify({ config_data: configData }) }),
+  getCached: () => {
+    try {
+      const raw = localStorage.getItem(SITE_CONFIG_CACHE_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  },
+  setCache: (data) => {
+    try {
+      localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(data))
+    } catch {}
+  },
 };

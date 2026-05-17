@@ -77,6 +77,23 @@ def delete_from_cloudinary(public_id):
         pass
 
 
+def cleanup_orphan_images(project_id, layout):
+    """Delete images from DB and Cloudinary that are not in the given layout."""
+    layout_urls = extract_layout_urls(layout)
+    images = execute_query(
+        "SELECT img_id, img_route, cloudinary_public_id FROM images WHERE project_id = %s",
+        (project_id,)
+    )
+    if not images:
+        return
+    for img in images:
+        if img['img_route'] not in layout_urls:
+            execute_query("DELETE FROM images WHERE img_id = %s", (img['img_id'],))
+            pid = img.get('cloudinary_public_id')
+            if pid:
+                delete_from_cloudinary(pid)
+
+
 # ── READ ──────────────────────────────────────────────────────
 
 @api_bp.route('/projects')
@@ -126,10 +143,14 @@ def get_project(project_id):
 
     parse_layout_json(project)
 
+    layout_urls = extract_layout_urls(project.get('layout_json', {}))
     images = execute_query(
         "SELECT * FROM images WHERE project_id = %s ORDER BY display_order ASC",
         (project_id,)
     )
+    # Only return images that are in the layout
+    if layout_urls:
+        images = [img for img in (images or []) if img.get('img_route') in layout_urls]
     project['images'] = images or []
 
     return jsonify({'project': project})
@@ -146,10 +167,13 @@ def get_project_by_name(project_name):
 
     parse_layout_json(project)
 
+    layout_urls = extract_layout_urls(project.get('layout_json', {}))
     images = execute_query(
         "SELECT * FROM images WHERE project_id = %s ORDER BY display_order ASC",
         (project['project_id'],)
     )
+    if layout_urls:
+        images = [img for img in (images or []) if img.get('img_route') in layout_urls]
     project['images'] = images or []
 
     return jsonify({'project': project})
@@ -157,13 +181,62 @@ def get_project_by_name(project_name):
 
 @api_bp.route('/projectimages')
 def get_project_images():
+    # Get all published projects with their layouts
+    projects = execute_query(
+        "SELECT project_id, layout_json FROM proyectos WHERE status = 'published'"
+    )
+    if projects is None:
+        return jsonify({'error': 'DB Error'}), 500
+
+    # Collect only URLs referenced in layouts
+    allowed_urls = set()
+    layout_by_project = {}
+    for p in projects:
+        layout = p.get('layout_json', {})
+        if isinstance(layout, str):
+            try:
+                layout = json.loads(layout)
+            except json.JSONDecodeError:
+                continue
+        urls = extract_layout_urls(layout)
+        allowed_urls |= urls
+
     images = execute_query(
         """SELECT i.* FROM images i
-           JOIN proyectos p ON i.project_id = p.project_id
-           WHERE i.status_id = 1 AND p.status = 'published'
-           ORDER BY i.project_id, i.display_order ASC"""
+        JOIN proyectos p ON i.project_id = p.project_id
+        WHERE i.status_id = 1 AND p.status = 'published'
+        ORDER BY i.project_id, i.display_order ASC"""
     )
-    return jsonify({'images': images}) if images is not None else (jsonify({'error': 'DB Error'}), 500)
+    if images is None:
+        return jsonify({'error': 'DB Error'}), 500
+
+    # Only return images whose route is in a project layout
+    if allowed_urls:
+        images = [img for img in images if img.get('img_route') in allowed_urls]
+
+    return jsonify({'images': images})
+
+
+@api_bp.route('/cleanup-orphans', methods=['POST'])
+@token_required
+def cleanup_all_orphans():
+    """One-time cleanup: delete all images not referenced in any project layout."""
+    projects = execute_query("SELECT project_id, layout_json FROM proyectos")
+    if projects is None:
+        return jsonify({'error': 'DB Error'}), 500
+
+    deleted = 0
+    for p in projects:
+        layout = p.get('layout_json', {})
+        if isinstance(layout, str):
+            try:
+                layout = json.loads(layout)
+            except json.JSONDecodeError:
+                layout = {"sections": []}
+        cleanup_orphan_images(p['project_id'], layout)
+        deleted += 1
+
+    return jsonify({'message': f'Cleaned up orphans for {deleted} projects'})
 
 
 # ── ARCHIVE (standalone images, not from archived projects) ───
@@ -172,8 +245,8 @@ def get_project_images():
 def get_archive():
     images = execute_query(
         """SELECT * FROM images
-           WHERE status_id = 3
-           ORDER BY display_order ASC"""
+        WHERE status_id = 3
+        ORDER BY display_order ASC"""
     )
     return jsonify({'images': images or []})
 
@@ -196,7 +269,6 @@ def upload_archive_image():
         img_url = result['secure_url']
         cloudinary_pid = result['public_id']
 
-        # Get max display_order
         max_order = execute_query(
             "SELECT COALESCE(MAX(display_order), 0) as max_o FROM images WHERE status_id = 3",
             fetch_one=True
@@ -263,7 +335,6 @@ def update_site_config():
     data = request.get_json()
     config_str = json.dumps(data.get('config_data', {}))
 
-    # Check if config row exists
     existing = execute_query("SELECT id FROM site_config LIMIT 1", fetch_one=True)
     if existing:
         result = execute_query(
@@ -350,13 +421,13 @@ def update_project(project_id):
 
     query = """
         UPDATE proyectos SET
-            project_name = %s,
-            project_description = %s,
-            project_stack = %s,
-            project_colaborators = %s,
-            project_type = %s,
-            status = %s,
-            layout_json = %s
+        project_name = %s,
+        project_description = %s,
+        project_stack = %s,
+        project_colaborators = %s,
+        project_type = %s,
+        status = %s,
+        layout_json = %s
         WHERE project_id = %s
     """
     params = (

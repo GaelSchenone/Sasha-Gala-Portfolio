@@ -1,12 +1,11 @@
 /* ============================================
-   HEADER & NAVIGATION
-   ============================================ */
+HEADER & NAVIGATION
+============================================ */
 header {
-
-  padding: 50px;
+  padding: 50px 50px 40px 50px;
   width: 100%;
   max-width: 100vw;
-  position: fixed;
+  position: sticky;
   top: 0;
   left: 0;
   margin: 0;
@@ -15,6 +14,7 @@ header {
   flex-direction: row;
   box-sizing: border-box;
   z-index: 1000;
+  background: inherit;
 }
 
 .logo {
@@ -29,8 +29,6 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-    
-  top: 100%;
 }
 
 .nav-links a {
@@ -45,14 +43,13 @@ header {
 }
 
 .nav-links a:hover {
-  font-weight: bolder ;
+  font-weight: bolder;
 }
 
 a.header1:hover {
   font-weight: inherit !important;
   text-decoration: none !important;
 }
-
 
 .navbutton {
   border: none;
@@ -61,7 +58,6 @@ a.header1:hover {
   padding: 0;
   display: none;
 }
-
 
 /* Agrega esto ANTES de las media queries */
 
@@ -76,7 +72,7 @@ a.header1:hover {
   text-decoration: none !important;
 }
 
-/* También asegúrate que el h1 no tenga efectos raros */
+/* Tambien asegurate que el h1 no tenga efectos raros */
 .logo a {
   text-decoration: none;
 }
@@ -112,14 +108,10 @@ a.header1:hover {
   #arrowdown-icon {
     display: block;
   }
-
-  
 }
 
 /* Desktop */
 @media screen and (min-width: 961px) {
-
-
   .nav-links {
     opacity: 1 !important;
   }

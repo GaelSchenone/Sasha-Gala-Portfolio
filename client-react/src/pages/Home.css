@@ -1,4 +1,4 @@
-/* RESET BÁSICO */
+/* RESET BASICO */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -20,26 +20,8 @@ body,
 }
 
 /* HEADER */
-.workbanner {
-  height: auto;
-  width: 100%;
-  padding: 51px 0 0 50px;
+header {
   flex-shrink: 0;
-  display: flex;
-  gap: 35px;
-  flex-direction: column;
-  margin-bottom: 40px;
-}
-.workbanner a{
-  margin: 0;
-  padding: 0;
-  height: fit-content;
-}
-
-.workbanner h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 400;
 }
 
 /* CONTENEDOR INFERIOR */
@@ -72,11 +54,7 @@ body,
   flex-direction: column;
   gap: 0;
   transition: all 0.3s ease-in-out;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scroll-behavior:smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: hidden;
 }
 
 
@@ -94,12 +72,12 @@ body,
 
 
 .project-item{
-    font-size: var(--home-projects-font-size, 8vh);
-    font-weight: var(--home-projects-font-weight, 300);
-    line-height: 1.15;
-    transition: font-weight 0.15s ease-in;
-    margin: 0;
-    padding: 0;
+  font-size: var(--home-projects-font-size, 8vh);
+  font-weight: var(--home-projects-font-weight, 300);
+  line-height: 1.15;
+  transition: font-weight 0.15s ease-in;
+  margin: 0;
+  padding: 0;
 }
 
 .project-item:hover {
@@ -123,12 +101,7 @@ body,
   height: 100%;
   width: 100%;
   display: flex;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-
+  overflow: hidden;
 }
 
 .displaywork::-webkit-scrollbar {
@@ -165,7 +138,7 @@ body,
 /* Prueba con diferentes niveles de especificidad */
 
 .current {
- font-weight: 600!important;
+  font-weight: 600!important;
 }
 
 li.current {
@@ -192,25 +165,6 @@ li.current {
 }
 
 
-/* Estilos para el link en workbanner */
-.workbanner a {
-  text-decoration: none !important;
-  color: inherit;
-}
-
-.workbanner a:hover {
-  text-decoration: none !important;
-}
-
-.workbanner h1 {
-  font-weight: normal; /* o el peso que quieras */
-}
-
-.workbanner h1:hover {
-  font-weight: normal; /* mantiene el peso en hover */
-}
-
-
 /*Footer Nav links*/
 footer{
   height: auto;
@@ -220,21 +174,15 @@ footer{
 }
 
 footer .contact-links{
-  all: unset;
   display: flex;
   justify-content: space-between;
-  padding-left:50px ;
+  
+  padding-left: 50px;
   font-size: var(--footer-font-size, large);
-  width: 20%;
-  height: 1vh;
-
+  width: 40%;
 }
 
 @media screen and (max-width: 1157px) {
-
-  .workbanner {
-    flex-direction: row;
-  }
 
   .container {
     height: fit-content;
@@ -256,9 +204,6 @@ footer .contact-links{
     width: 100%;
     flex-direction: row;
     overflow: hidden;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    touch-action: none;
   }
 
   .carrousel-y-wrapper::-webkit-scrollbar {
@@ -270,7 +215,6 @@ footer .contact-links{
     flex-direction: row;
     margin-left: 20px;
     padding: 10px 0;
-    touch-action: none;
   }
 
   .project-item {
@@ -300,8 +244,6 @@ footer .contact-links{
     width: 100%;
     overflow: hidden;
     padding: 20px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
   }
 
   .displaywork::-webkit-scrollbar {
@@ -320,7 +262,6 @@ footer .contact-links{
   }
 
   footer .contact-links {
-  
     padding-left: 20px;
     font-size: 14px;
     width: 78%;

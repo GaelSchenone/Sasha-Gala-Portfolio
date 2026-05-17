@@ -1,24 +1,40 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import './Home.css'
 import './Archive.css'
-import useWindowWidth from '../componentes/useWindowWidth';
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
+import { InfiniteScroll } from '../componentes/InfiniteScroll'
 import { BASE_URL } from '../services/api'
+
+const HOVER_PAUSE_MS = 5000
 
 export function Archive() {
   const [archiveImages, setArchiveImages] = useState([])
   const [viewerImage, setViewerImage] = useState(null)
-  const imagesTransform = useRef(0)
-  const targetImagesTransform = useRef(0)
-  const userDraggingImages = useRef(false)
-  const imagesDragTimeout = useRef(null)
-  const imagesContainerRef = useRef(null)
-  const screenWidth = useWindowWidth();
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const hoverTimerRef = useRef(null)
+  const [hoverPaused, setHoverPaused] = useState(false)
 
-  const openViewer = (src) => setViewerImage(src)
-  const closeViewer = () => setViewerImage(null)
+  const openViewer = (src) => { setViewerImage(src); setViewerOpen(true) }
+  const closeViewer = () => { setViewerImage(null); setViewerOpen(false) }
+
+  const handleMouseEnter = useCallback(() => {
+    clearTimeout(hoverTimerRef.current)
+    setHoverPaused(true)
+    hoverTimerRef.current = setTimeout(() => {
+      setHoverPaused(false)
+    }, HOVER_PAUSE_MS)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    clearTimeout(hoverTimerRef.current)
+    setHoverPaused(false)
+  }, [])
+
+  useEffect(() => {
+    return () => clearTimeout(hoverTimerRef.current)
+  }, [])
 
   useEffect(() => {
     fetch(`${BASE_URL}/archive`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
@@ -31,148 +47,34 @@ export function Archive() {
       .catch((error) => console.error('Error fetching archive:', error))
   }, [])
 
-  useEffect(() => {
-    if (!imagesContainerRef.current || archiveImages.length === 0) return
-
-    const container = imagesContainerRef.current
-    let animationId = null
-    let lastTime = Date.now()
-
-    // Start with offset so first image border is not visible
-    requestAnimationFrame(() => {
-      const firstImg = container.querySelector('img')
-      if (firstImg) {
-        const itemSize = firstImg.offsetWidth
-        const offset = -(itemSize * 0.4)
-        imagesTransform.current = offset
-        targetImagesTransform.current = offset
-      }
-    })
-
-    const animate = () => {
-      const now = Date.now()
-      const delta = now - lastTime
-      lastTime = now
-
-      if (!userDraggingImages.current) {
-        const speed = 30
-        const movement = (speed * delta) / 1000
-        targetImagesTransform.current -= movement
-        imagesTransform.current += (targetImagesTransform.current - imagesTransform.current) * 0.1;
-      } else {
-        targetImagesTransform.current = imagesTransform.current;
-      }
-
-      const firstImg = container.querySelector('img')
-      if (firstImg) {
-        const itemSize = firstImg.offsetWidth
-        const totalSize = itemSize * archiveImages.length * 3
-
-        if (imagesTransform.current <= -totalSize) {
-          imagesTransform.current += totalSize
-          targetImagesTransform.current += totalSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalSize
-          targetImagesTransform.current -= totalSize
-        }
-      }
-
-      container.style.transform = `translateX(${imagesTransform.current}px)`
-
-      animationId = requestAnimationFrame(animate)
-    }
-
-    const handleWheel = (e) => {
-      e.preventDefault()
-      userDraggingImages.current = true
-      const delta = e.deltaX || e.deltaY
-      targetImagesTransform.current -= delta
-      imagesTransform.current = targetImagesTransform.current;
-
-      clearTimeout(imagesDragTimeout.current)
-      imagesDragTimeout.current = setTimeout(() => {
-        userDraggingImages.current = false
-      }, 2000)
-    }
-
-    let lastTouch = 0
-    const handleTouchStart = (e) => {
-      lastTouch = e.touches[0].clientX
-      userDraggingImages.current = true
-    }
-    const handleTouchMove = (e) => {
-      e.preventDefault()
-      const currentPos = e.touches[0].clientX
-      const delta = currentPos - lastTouch
-      lastTouch = currentPos
-      targetImagesTransform.current += delta
-      imagesTransform.current = targetImagesTransform.current
-
-      const firstImg = container.querySelector('img')
-      if (firstImg) {
-        const itemSize = firstImg.offsetWidth
-        const totalSize = itemSize * archiveImages.length * 3
-        if (imagesTransform.current <= -totalSize) {
-          imagesTransform.current += totalSize
-          targetImagesTransform.current += totalSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalSize
-          targetImagesTransform.current -= totalSize
-        }
-      }
-
-      container.style.transform = `translateX(${imagesTransform.current}px)`
-    }
-    const handleTouchEnd = () => {
-      clearTimeout(imagesDragTimeout.current)
-      imagesDragTimeout.current = setTimeout(() => {
-        userDraggingImages.current = false
-      }, 2000)
-    }
-
-    animate()
-
-    const display = container.closest('.displaywork')
-    if (display) {
-      display.addEventListener('wheel', handleWheel, { passive: false })
-      display.addEventListener('touchstart', handleTouchStart, { passive: false })
-      display.addEventListener('touchmove', handleTouchMove, { passive: false })
-      display.addEventListener('touchend', handleTouchEnd, { passive: false })
-    }
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId)
-      if (display) {
-        display.removeEventListener('wheel', handleWheel)
-        display.removeEventListener('touchstart', handleTouchStart)
-        display.removeEventListener('touchmove', handleTouchMove)
-        display.removeEventListener('touchend', handleTouchEnd)
-      }
-    }
-  }, [archiveImages, screenWidth])
+  const pauseBoth = viewerOpen || hoverPaused
 
   return (
     <>
-      <div className="workbanner">
-        <Header />
-      </div>
+      <Header />
 
       <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
         <div className="containerwork" style={{ width: '100%', height: '100%' }}>
-          <div className="displaywork flex" style={{ overflow: 'hidden', width: '100%', height: '100%' }}>
-            <div className="carrousel" ref={imagesContainerRef} style={{ display: 'flex' }}>
-              {[...archiveImages, ...archiveImages, ...archiveImages].map((image, index) => (
+          <div className="displaywork flex" style={{ overflow: 'hidden', width: '100%', height: '100%' }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <InfiniteScroll
+              axis="x"
+              speed={30}
+              pause={pauseBoth}
+              className="carrousel"
+            >
+              {[...archiveImages, ...archiveImages, ...archiveImages, ...archiveImages].map((image, index) => (
                 <ClickableImage
                   key={`archive-${index}`}
                   src={image.img_route}
                   alt={image.img_alt || "Archived image"}
-                  style={{ height: '100%', objectFit: 'cover' }}
+                  style={{ height: '100%', width: 'auto', objectFit: 'cover' }}
                   onClick={() => openViewer(image.img_route)}
                 />
               ))}
-            </div>
+            </InfiniteScroll>
           </div>
         </div>
       </div>

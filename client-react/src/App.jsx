@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route} from 'react-router-dom'
-import { useEffect } from 'react'
 import { Home } from './pages/Home'
 import { View } from './pages/View'
 import { Work } from './pages/Work'
@@ -9,18 +8,8 @@ import { Login } from './pages/Login'
 import { Admin } from './pages/Admin'
 import { ProjectEditor } from './pages/ProjectEditor'
 import { TypographyProvider } from './componentes/TypographyProvider'
-import { siteConfigService } from './services/api'
 
 function App() {
-  useEffect(() => {
-    siteConfigService.get()
-      .then(data => {
-        const name = data.config?.config_data?.name
-        if (name) document.title = name
-      })
-      .catch(() => {})
-  }, [])
-
   return(
     <TypographyProvider>
       <Router>

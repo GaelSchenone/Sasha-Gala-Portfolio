@@ -1,17 +1,17 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import './Home.css'
 import { useNavigate } from 'react-router-dom'
 import useWindowWidth from '../componentes/useWindowWidth'
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
-import { siteConfigService, BASE_URL } from '../services/api'
+import { InfiniteScroll } from '../componentes/InfiniteScroll'
+import { useSiteConfig } from '../componentes/useSiteConfig'
+import { BASE_URL } from '../services/api'
 
 const normalizeImageRoute = (route) => {
   if (!route) return route
-  // Full URLs (Cloudinary CDN) are returned as-is
   if (route.startsWith('http://') || route.startsWith('https://')) return route
-  // Legacy /imgs/ routes - no longer served after Cloudinary migration
   return route
 }
 
@@ -31,31 +31,57 @@ const normalizeImages = (data) => {
   return data
 }
 
+const HOVER_PAUSE_MS = 5000
+
 export function Home() {
   const [projects, setProjects] = useState([])
   const [projectimages, setProjectImages] = useState([])
   const [selected, setSelected] = useState(null)
+  const [highlightedIdx, setHighlightedIdx] = useState(-1)
   const [viewerImage, setViewerImage] = useState(null)
-  const [siteLinks, setSiteLinks] = useState([])
-  const [scrollSpeeds, setScrollSpeeds] = useState({
-    projects: 30,
-    images: 50,
+  const [siteLinks, setSiteLinks] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem('sasha_site_config') || 'null')
+      return cached?.links || []
+    } catch { return [] }
+  })
+  const [scrollSpeeds, setScrollSpeeds] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem('sasha_site_config') || 'null')
+      return {
+        projects: cached?.scroll_projects_speed || 30,
+        images: cached?.scroll_images_speed || 50,
+      }
+    } catch { return { projects: 30, images: 50 } }
   })
 
-  const isHovering = useRef(false)
-  const isOverSidebar = useRef(false)
-  const isOverImages = useRef(false)
+  const siteConfig = useSiteConfig()
+
+  useEffect(() => {
+    if (!siteConfig) return
+    if (siteConfig.links) setSiteLinks(siteConfig.links)
+    setScrollSpeeds({
+      projects: siteConfig.scroll_projects_speed || 30,
+      images: siteConfig.scroll_images_speed || 50,
+    })
+  }, [siteConfig])
+
   const viewerImageRef = useRef(null)
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const hoverTimerRef = useRef(null)
+  const [hoverPaused, setHoverPaused] = useState(false)
 
   const navigate = useNavigate()
 
   const openViewer = (src) => {
     viewerImageRef.current = src
     setViewerImage(src)
+    setViewerOpen(true)
   }
   const closeViewer = () => {
     viewerImageRef.current = null
     setViewerImage(null)
+    setViewerOpen(false)
   }
 
   const handleProjectClick = (id, name, type) => {
@@ -77,26 +103,36 @@ export function Home() {
     }
   }
 
-  const projectsTransform = useRef(0)
-  const imagesTransform = useRef(0)
-  const targetImagesTransform = useRef(0)
+  // ── Hover pause logic ──────────────────────────────────
+  const handleImagesMouseEnter = useCallback(() => {
+    clearTimeout(hoverTimerRef.current)
+    setHoverPaused(true)
+    // Start 5s timer — resume even if mouse stays
+    hoverTimerRef.current = setTimeout(() => {
+      setHoverPaused(false)
+    }, HOVER_PAUSE_MS)
+  }, [])
 
-  const userDraggingProjects = useRef(false)
-  const userDraggingImages = useRef(false)
-  const projectsDragTimeout = useRef(null)
-  const imagesDragTimeout = useRef(null)
+  const handleImagesMouseLeave = useCallback(() => {
+    clearTimeout(hoverTimerRef.current)
+    setHoverPaused(false)
+  }, [])
 
-  const projectsContainerRef = useRef(null)
-  const imagesContainerRef = useRef(null)
-
-  const projectItemSizeRef = useRef(0)
-  const imageItemSizeRef = useRef(0)
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => clearTimeout(hoverTimerRef.current)
+  }, [])
 
   const selectedRef = useRef(selected)
-  const lastSelectedProjectRef = useRef(null)
   useEffect(() => { selectedRef.current = selected }, [selected])
 
   const screenWidth = useWindowWidth()
+  const isMobile = screenWidth <= 1157
+
+  const allProjectItems = useMemo(
+    () => [...projects, ...projects, ...projects, ...projects],
+    [projects]
+  )
 
   useEffect(() => {
     fetch(`${BASE_URL}/projects?status=published`)
@@ -119,405 +155,99 @@ export function Home() {
       .catch(err => console.error('Error fetching images:', err))
   }, [])
 
+  // Selector detection
   useEffect(() => {
-    siteConfigService.get()
-      .then(data => {
-        if (data.config?.config_data?.links) setSiteLinks(data.config.config_data.links)
-        if (data.config?.config_data) {
-          setScrollSpeeds({
-            projects: data.config.config_data.scroll_projects_speed || 30,
-            images: data.config.config_data.scroll_images_speed || 50,
-          })
+    if (projects.length === 0) return
+
+    const interval = setInterval(() => {
+      const selector = document.querySelector('.selector')
+      const container = document.querySelector('.carrousel-y')
+      if (!selector || !container) return
+
+      const items = container.querySelectorAll('.project-item')
+      if (items.length === 0) return
+
+      const selectorRect = selector.getBoundingClientRect()
+      const selectorCenter = isMobile
+        ? (selectorRect.left + selectorRect.right) / 2
+        : (selectorRect.top + selectorRect.bottom) / 2
+
+      let minDistance = Infinity
+      let closestIdx = -1
+
+      items.forEach((item, idx) => {
+        const itemRect = item.getBoundingClientRect()
+        const itemCenter = isMobile
+          ? (itemRect.left + itemRect.right) / 2
+          : (itemRect.top + itemRect.bottom) / 2
+        const distance = Math.abs(selectorCenter - itemCenter)
+        if (distance < minDistance) {
+          minDistance = distance
+          closestIdx = idx
         }
       })
-      .catch(() => {})
-  }, [])
 
-  useEffect(() => {
-    if (projects.length === 0 || projectimages.length === 0) return
-
-    const projectsContainer = projectsContainerRef.current
-    const imagesContainer = imagesContainerRef.current
-    if (!projectsContainer || !imagesContainer) return
-
-    const isMobile = screenWidth <= 1157
-    let animationId = null
-    let lastTimestamp = null
-    let lastSelectionTimestamp = 0
-    const SELECTION_INTERVAL = 33
-
-    const measureSizes = () => {
-      const firstProject = projectsContainer.querySelector('.project-item')
-      if (firstProject) {
-        projectItemSizeRef.current = isMobile ? firstProject.offsetWidth : firstProject.offsetHeight
-      }
-      const firstImg = imagesContainer.querySelector('img')
-      if (firstImg) {
-        imageItemSizeRef.current = firstImg.offsetWidth
-      }
-    }
-    measureSizes()
-
-    const animate = (timestamp) => {
-      if (lastTimestamp === null) {
-        lastTimestamp = timestamp
-        animationId = requestAnimationFrame(animate)
-        return
-      }
-
-      const delta = Math.min(timestamp - lastTimestamp, 50)
-      lastTimestamp = timestamp
-
-      const pauseProjects = userDraggingProjects.current || isOverSidebar.current || viewerImageRef.current || isOverImages.current || userDraggingImages.current
-      const pauseImages = userDraggingImages.current || viewerImageRef.current
-
-      if (!pauseProjects) {
-        const speed = scrollSpeeds.projects
-        const movement = (speed * delta) / 1000
-        projectsTransform.current -= movement
-
-        const gap = isMobile ? 20 : 5
-        const marginLeft = isMobile ? 20 : 0
-        const slotSize = projectItemSizeRef.current + gap
-        const totalSize = slotSize * projects.length * 3 + marginLeft
-
-        if (totalSize > 0) {
-          if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
-          if (projectsTransform.current > 0) projectsTransform.current -= totalSize
-        }
-
-        if (isMobile) {
-          projectsContainer.style.transform = `translateX(${projectsTransform.current}px)`
-        } else {
-          projectsContainer.style.transform = `translateY(${projectsTransform.current}px)`
+      if (closestIdx >= 0) {
+        setHighlightedIdx(closestIdx)
+        const projectId = parseInt(items[closestIdx].dataset.key)
+        if (projectId !== selectedRef.current) {
+          setSelected(projectId)
         }
       }
+    }, 33)
 
-      const currentSelected = selectedRef.current
-
-      // Resetear transform cuando cambia el proyecto seleccionado
-      if (currentSelected !== lastSelectedProjectRef.current) {
-        lastSelectedProjectRef.current = currentSelected
-        imagesTransform.current = 0
-        targetImagesTransform.current = 0
-      }
-
-      const filteredCount = projectimages.filter(img => img.project_id == currentSelected).length
-      const imageSlotSize = imageItemSizeRef.current + 10
-
-      if (!pauseImages) {
-        const speed = scrollSpeeds.images
-        const movement = (speed * delta) / 1000
-        targetImagesTransform.current -= movement
-        imagesTransform.current += (targetImagesTransform.current - imagesTransform.current) * 0.1
-      } else {
-        targetImagesTransform.current = imagesTransform.current
-      }
-
-      const totalImageSize = imageSlotSize * filteredCount * 3
-      if (totalImageSize > 0) {
-        if (imagesTransform.current <= -totalImageSize) {
-          imagesTransform.current += totalImageSize
-          targetImagesTransform.current += totalImageSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalImageSize
-          targetImagesTransform.current -= totalImageSize
-        }
-      }
-
-      if (isMobile) {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      }
-
-      if (!isHovering.current && timestamp - lastSelectionTimestamp >= SELECTION_INTERVAL) {
-        lastSelectionTimestamp = timestamp
-        const selector = document.querySelector('.selector')
-        const projectItems = projectsContainer.querySelectorAll('.project-item')
-
-        if (selector && projectItems.length > 0) {
-          const selectorRect = selector.getBoundingClientRect()
-          const selectorCenter = isMobile
-            ? (selectorRect.left + selectorRect.right) / 2
-            : (selectorRect.top + selectorRect.bottom) / 2
-
-          let minDistance = Infinity
-          let closestId = null
-
-          projectItems.forEach(item => {
-            const itemRect = item.getBoundingClientRect()
-            const itemCenter = isMobile
-              ? (itemRect.left + itemRect.right) / 2
-              : (itemRect.top + itemRect.bottom) / 2
-
-            const distance = Math.abs(selectorCenter - itemCenter)
-            if (distance < minDistance) {
-              minDistance = distance
-              closestId = parseInt(item.dataset.key)
-            }
-          })
-
-          if (closestId && closestId !== selectedRef.current) {
-            setSelected(closestId)
-          }
-        }
-      }
-
-      animationId = requestAnimationFrame(animate)
-    }
-
-    animationId = requestAnimationFrame(animate)
-
-    const handleProjectsWheel = (e) => {
-      e.preventDefault()
-      userDraggingProjects.current = true
-      const delta = isMobile ? e.deltaX || e.deltaY : e.deltaY
-      projectsTransform.current -= delta
-
-      const gap = isMobile ? 20 : 5
-      const marginLeft = isMobile ? 20 : 0
-      const slotSize = projectItemSizeRef.current + gap
-      const totalSize = slotSize * projects.length * 3 + marginLeft
-      if (totalSize > 0) {
-        if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
-        if (projectsTransform.current > 0) projectsTransform.current -= totalSize
-      }
-
-      if (isMobile) {
-        projectsContainer.style.transform = `translateX(${projectsTransform.current}px)`
-      } else {
-        projectsContainer.style.transform = `translateY(${projectsTransform.current}px)`
-      }
-
-      clearTimeout(projectsDragTimeout.current)
-      projectsDragTimeout.current = setTimeout(() => { userDraggingProjects.current = false }, 1500)
-    }
-
-    let lastProjectsTouch = 0
-    const handleProjectsTouchStart = (e) => {
-      const isMobileNow = window.innerWidth <= 1157
-      lastProjectsTouch = isMobileNow ? e.touches[0].clientX : e.touches[0].clientY
-      userDraggingProjects.current = true
-    }
-    const handleProjectsTouchMove = (e) => {
-      const isMobileNow = window.innerWidth <= 1157
-      e.preventDefault()
-      e.stopPropagation()
-      const currentPos = isMobileNow ? e.touches[0].clientX : e.touches[0].clientY
-      const delta = currentPos - lastProjectsTouch
-      lastProjectsTouch = currentPos
-      projectsTransform.current += delta
-
-      const gap = isMobileNow ? 20 : 5
-      const marginLeft = isMobileNow ? 20 : 0
-      const slotSize = projectItemSizeRef.current + gap
-      const totalSize = slotSize * projects.length * 3 + marginLeft
-      if (totalSize > 0) {
-        if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
-        if (projectsTransform.current > 0) projectsTransform.current -= totalSize
-      }
-
-      if (isMobileNow) {
-        projectsContainer.style.transform = `translateX(${projectsTransform.current}px)`
-      } else {
-        projectsContainer.style.transform = `translateY(${projectsTransform.current}px)`
-      }
-    }
-    const handleProjectsTouchEnd = () => {
-      clearTimeout(projectsDragTimeout.current)
-      projectsDragTimeout.current = setTimeout(() => { userDraggingProjects.current = false }, 1500)
-    }
-
-    const handleImagesWheel = (e) => {
-      e.preventDefault()
-      userDraggingImages.current = true
-      const delta = isMobile ? (e.deltaX || e.deltaY) : (e.deltaX || e.deltaY)
-      targetImagesTransform.current -= delta
-      imagesTransform.current = targetImagesTransform.current
-
-      const filteredCount = projectimages.filter(img => img.project_id == selectedRef.current).length
-      const slotSize = imageItemSizeRef.current + 10
-      const totalSize = slotSize * filteredCount * 3
-      if (totalSize > 0) {
-        if (imagesTransform.current <= -totalSize) {
-          imagesTransform.current += totalSize
-          targetImagesTransform.current += totalSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalSize
-          targetImagesTransform.current -= totalSize
-        }
-      }
-
-      if (isMobile) {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      }
-
-      clearTimeout(imagesDragTimeout.current)
-      imagesDragTimeout.current = setTimeout(() => { userDraggingImages.current = false }, 1500)
-    }
-
-    let lastImagesTouch = 0
-    const handleImagesTouchStart = (e) => {
-      lastImagesTouch = e.touches[0].clientX
-      userDraggingImages.current = true
-    }
-    const handleImagesTouchMove = (e) => {
-      e.preventDefault()
-      const currentPos = e.touches[0].clientX
-      const delta = currentPos - lastImagesTouch
-      lastImagesTouch = currentPos
-      targetImagesTransform.current += delta
-      imagesTransform.current = targetImagesTransform.current
-
-      const filteredCount = projectimages.filter(img => img.project_id == selectedRef.current).length
-      const slotSize = imageItemSizeRef.current + 10
-      const totalSize = slotSize * filteredCount * 3
-      if (totalSize > 0) {
-        if (imagesTransform.current <= -totalSize) {
-          imagesTransform.current += totalSize
-          targetImagesTransform.current += totalSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalSize
-          targetImagesTransform.current -= totalSize
-        }
-      }
-
-      if (isMobile) {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      }
-    }
-    const handleImagesTouchEnd = () => {
-      clearTimeout(imagesDragTimeout.current)
-      imagesDragTimeout.current = setTimeout(() => { userDraggingImages.current = false }, 1500)
-    }
-
-    const handleSidebarEnter = () => { isOverSidebar.current = true }
-    const handleSidebarLeave = () => { isOverSidebar.current = false }
-    const handleImagesEnter = () => { isOverImages.current = true }
-    const handleImagesLeave = () => { isOverImages.current = false }
-    const handleProjectMouseEnter = function() {
-      isHovering.current = true
-      const key = parseInt(this.dataset.key)
-      setSelected(key)
-    }
-    const handleProjectMouseLeave = () => { isHovering.current = false }
-
-    const wrapper = projectsContainer.closest('.carrousel-y-wrapper')
-    const display = imagesContainer.closest('.displaywork')
-
-    if (wrapper) {
-      wrapper.addEventListener('wheel', handleProjectsWheel, { passive: false })
-      wrapper.addEventListener('touchstart', handleProjectsTouchStart, { passive: false })
-      wrapper.addEventListener('touchmove', handleProjectsTouchMove, { passive: false })
-      wrapper.addEventListener('touchend', handleProjectsTouchEnd, { passive: false })
-      wrapper.addEventListener('mouseenter', handleSidebarEnter)
-      wrapper.addEventListener('mouseleave', handleSidebarLeave)
-    }
-
-    // Also add touch listeners directly to projectsContainer for better mobile support
-    projectsContainer.addEventListener('touchstart', handleProjectsTouchStart, { passive: false })
-    projectsContainer.addEventListener('touchmove', handleProjectsTouchMove, { passive: false })
-    projectsContainer.addEventListener('touchend', handleProjectsTouchEnd, { passive: false })
-
-    if (display) {
-      display.addEventListener('wheel', handleImagesWheel, { passive: false })
-      display.addEventListener('touchstart', handleImagesTouchStart, { passive: false })
-      display.addEventListener('touchmove', handleImagesTouchMove, { passive: false })
-      display.addEventListener('touchend', handleImagesTouchEnd, { passive: false })
-      if (screenWidth > 1157) {
-        display.addEventListener('mouseenter', handleImagesEnter)
-        display.addEventListener('mouseleave', handleImagesLeave)
-      }
-    }
-
-    const projectItems = projectsContainer.querySelectorAll('.project-item')
-    projectItems.forEach(item => {
-      item.addEventListener('mouseenter', handleProjectMouseEnter)
-    })
-    projectsContainer.addEventListener('mouseleave', handleProjectMouseLeave)
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId)
-      if (wrapper) {
-        wrapper.removeEventListener('wheel', handleProjectsWheel)
-        wrapper.removeEventListener('touchstart', handleProjectsTouchStart)
-        wrapper.removeEventListener('touchmove', handleProjectsTouchMove)
-        wrapper.removeEventListener('touchend', handleProjectsTouchEnd)
-        wrapper.removeEventListener('mouseenter', handleSidebarEnter)
-        wrapper.removeEventListener('mouseleave', handleSidebarLeave)
-      }
-      projectsContainer.removeEventListener('touchstart', handleProjectsTouchStart)
-      projectsContainer.removeEventListener('touchmove', handleProjectsTouchMove)
-      projectsContainer.removeEventListener('touchend', handleProjectsTouchEnd)
-      if (display) {
-        display.removeEventListener('wheel', handleImagesWheel)
-        display.removeEventListener('touchstart', handleImagesTouchStart)
-        display.removeEventListener('touchmove', handleImagesTouchMove)
-        display.removeEventListener('touchend', handleImagesTouchEnd)
-        display.removeEventListener('mouseenter', handleImagesEnter)
-        display.removeEventListener('mouseleave', handleImagesLeave)
-      }
-      projectItems.forEach(item => {
-        item.removeEventListener('mouseenter', handleProjectMouseEnter)
-      })
-      projectsContainer.removeEventListener('mouseleave', handleProjectMouseLeave)
-    }
-  }, [projects, projectimages, screenWidth])
+    return () => clearInterval(interval)
+  }, [projects.length, isMobile])
 
   const filteredImages = useMemo(
     () => projectimages.filter(img => img.project_id == selected),
     [projectimages, selected]
   )
 
+  // Both scrolls pause on: viewer open OR hover on images area
+  const pauseBoth = viewerOpen || hoverPaused
+
   return (
     <>
-      <div className="workbanner">
-        <Header />
-      </div>
+      <Header />
 
       <div className="container">
         <div className="sidebar">
           <div className="selector"></div>
           <div className="carrousel-y-wrapper">
-            <div className="carrousel-y" ref={projectsContainerRef}>
-              {[...projects, ...projects, ...projects].map((project, index) => (
+            <InfiniteScroll
+              axis={isMobile ? 'x' : 'y'}
+              speed={scrollSpeeds.projects}
+              pause={pauseBoth}
+              className="carrousel-y"
+            >
+              {allProjectItems.map((project, index) => (
                 <div
                   className='project-item'
                   key={`project-${index}`}
                   data-key={project.project_id}
-                  style={{ fontWeight: selected === project.project_id ? 500 : 300 }}
+                  style={{ fontWeight: index === highlightedIdx ? 500 : 300 }}
                   onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
                 >
                   {project.project_name}
                 </div>
               ))}
-              {[...projects, ...projects, ...projects].map((project, index) => (
-                <div
-                  className='project-item'
-                  key={`project-${index}`}
-                  data-key={project.project_id}
-                  style={{ fontWeight: selected === project.project_id ? 500 : 300 }}
-                  onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
-                >
-                  {project.project_name}
-                </div>
-              ))}
-            </div>
+            </InfiniteScroll>
           </div>
         </div>
 
         <div className="containerwork">
-          <div className="displaywork">
-            <div className="carrousel-work" ref={imagesContainerRef}>
-              {[...filteredImages, ...filteredImages, ...filteredImages].map((image, index) => (
+          <div className="displaywork"
+            onMouseEnter={handleImagesMouseEnter}
+            onMouseLeave={handleImagesMouseLeave}
+          >
+            <InfiniteScroll
+              axis="x"
+              speed={scrollSpeeds.images}
+              pause={pauseBoth}
+              className="carrousel-work"
+            >
+              {[...filteredImages, ...filteredImages, ...filteredImages, ...filteredImages].map((image, index) => (
                 <ClickableImage
                   key={`image-${index}`}
                   src={image.img_route}
@@ -525,7 +255,7 @@ export function Home() {
                   onClick={() => handleImageClick(image)}
                 />
               ))}
-            </div>
+            </InfiniteScroll>
           </div>
         </div>
       </div>

@@ -31,13 +31,11 @@ export function Header() {
 
   const navVariants = {
     open: {
-      y: "0px",
       opacity: 1,
       zIndex: 100,
       transition: { duration: 0.3, ease: "easeInOut" }
     },
     closed: {
-      y: "-50px",
       opacity: 0,
       zIndex: -100,
       transition: { duration: 0.3, ease: "easeInOut" }
@@ -67,13 +65,9 @@ export function Header() {
   useEffect(() => {
     const handleScroll = () => {
       const header = document.querySelector("header");
-      const navLinks = document.querySelector(".nav-links");
-
       if (header) {
-        header.style.padding = `${50 - Math.min(window.scrollY / 12, 25)}px 50px`;
-      }
-      if (navLinks) {
-        navLinks.style.top = `${50 - Math.min(window.scrollY / 12, 25) + 40}px`;
+        const newPadding = 50 - Math.min(window.scrollY / 12, 25);
+        header.style.padding = `${newPadding}px 50px`;
       }
     };
 
