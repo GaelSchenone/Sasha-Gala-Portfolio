@@ -7,23 +7,25 @@ import { useEffect, useRef } from 'react'
  * - axis: 'y' | 'x' (default 'y')
  * - speed: pixels per second for auto-scroll (default 30)
  * - friction: velocity decay per frame (default 0.92)
- * - resumeDelay: ms before auto-scroll resumes after interaction (default 2000)
+ * - resumeDelay: ms before auto-scroll resumes after interaction (default 1500)
  * - pause: external pause signal (default false)
  * - className: applied to the inner container
  * - style: applied to the inner container
  * - children: render 4 copies externally for seamless loop
  * - onScrollingChange?: (scrolling: boolean) => void
+ * - onTick?: (offset: number, listSize: number) => void
  */
 export function InfiniteScroll({
   axis = 'y',
   speed = 30,
   friction = 0.92,
-  resumeDelay = 2000,
+  resumeDelay = 1500,
   pause: externalPause = false,
   className = '',
   style = {},
   children,
   onScrollingChange,
+  onTick,
 }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
@@ -33,12 +35,14 @@ export function InfiniteScroll({
   const resumeDelayRef = useRef(resumeDelay)
   const externalPauseRef = useRef(externalPause)
   const onScrollingChangeRef = useRef(onScrollingChange)
+  const onTickRef = useRef(onTick)
 
   speedRef.current = speed
   frictionRef.current = friction
   resumeDelayRef.current = resumeDelay
   externalPauseRef.current = externalPause
   onScrollingChangeRef.current = onScrollingChange
+  onTickRef.current = onTick
 
   const state = useRef({
     offset: 0,
@@ -50,14 +54,15 @@ export function InfiniteScroll({
     rafId: null,
     lastTime: 0,
     resumeTimer: null,
-    dragging: false,
+    touching: false,
     lastPos: 0,
     lastMoveT: 0,
+    dirty: false,
+    touchMoved: false,
   })
 
   const isY = axis === 'y'
 
-  // Main animation + events effect — runs once, reads refs for props
   useEffect(() => {
     const s = state.current
     const outer = outerRef.current
@@ -76,64 +81,67 @@ export function InfiniteScroll({
 
     const measureList = () => {
       s.listSize = isY ? inner.offsetHeight / COPIES : inner.offsetWidth / COPIES
-      return s.listSize
     }
 
     const measureContainer = () => {
       s.containerSize = isY ? outer.clientHeight : outer.clientWidth
-      return s.containerSize
     }
 
     const normalize = () => {
       if (!s.listSize) return
+      // Keep offset within [-listSize, -(2*listSize - containerSize)]
+      // This guarantees at least one full copy is always visible on both
+      // sides of the viewport, regardless of container/list size ratio.
+      const upperBound = -s.listSize
       const lowerBound = -(COPIES * s.listSize - s.containerSize)
-      if (lowerBound >= -s.listSize) return
+      if (lowerBound >= upperBound) {
+        // Content fits in viewport — no scrolling possible
+        s.offset = upperBound
+        return
+      }
       while (s.offset < lowerBound) s.offset += s.listSize
-      while (s.offset > -s.listSize) s.offset -= s.listSize
+      while (s.offset > upperBound) s.offset -= s.listSize
     }
 
+    // THE RULE: applyTransform() is called ONLY from the RAF tick.
+    // Event handlers NEVER write to the DOM — they only
+    // mutate s.offset / s.velocity and flag s.dirty = true.
     const applyTransform = () => {
-      if (isY) {
-        inner.style.transform = `translate3d(0,${s.offset}px,0)`
-      } else {
-        inner.style.transform = `translate3d(${s.offset}px,0,0)`
-      }
+      inner.style.transform = isY
+        ? `translate3d(0,${s.offset}px,0)`
+        : `translate3d(${s.offset}px,0,0)`
     }
 
     const setPaused = (val) => {
       s.paused = val
-      const cb = onScrollingChangeRef.current
-      if (cb) cb(!val)
+      onScrollingChangeRef.current?.(!val)
     }
 
-    const scheduleResume = () => {
+    const scheduleResume = (delay = resumeDelayRef.current) => {
       clearTimeout(s.resumeTimer)
       s.resumeTimer = setTimeout(() => {
         if (!s.manualPause && !externalPauseRef.current) {
           setPaused(false)
+          s.lastTime = 0
         }
-      }, resumeDelayRef.current)
+      }, delay)
     }
 
-    const doPause = () => {
-      setPaused(true)
-    }
-
-    // Init
+    // ── Init ──────────────────────────────────────────────────
     measureContainer()
     measureList()
     s.offset = -s.listSize
     applyTransform()
 
-    // ResizeObserver
+    // ── ResizeObserver ────────────────────────────────────────
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === outer) {
-          measureContainer()
+          s.containerSize = isY ? entry.contentRect.height : entry.contentRect.width
         }
         if (entry.target === inner) {
           const oldSize = s.listSize
-          measureList()
+          s.listSize = (isY ? entry.contentRect.height : entry.contentRect.width) / COPIES
           if (oldSize && s.listSize && s.listSize !== oldSize) {
             const copyNum = Math.round(-s.offset / oldSize)
             s.offset = -copyNum * s.listSize
@@ -146,7 +154,7 @@ export function InfiniteScroll({
     ro.observe(outer)
     ro.observe(inner)
 
-    // ── Animation loop ──────────────────────────────────────
+    // ── Animation loop ────────────────────────────────────────
     const tick = (timestamp) => {
       if (!s.lastTime) {
         s.lastTime = timestamp
@@ -158,28 +166,39 @@ export function InfiniteScroll({
       s.lastTime = timestamp
 
       if (Math.abs(s.velocity) > MIN_V) {
-        s.offset += s.velocity
-        s.velocity *= frictionRef.current
+        // Frame-rate independent friction: decays ~friction per 16.67ms frame
+        const frictionPerMs = Math.pow(frictionRef.current, delta / 16.67)
+        s.offset += s.velocity * (delta / 16.67)
+        s.velocity *= frictionPerMs
         if (Math.abs(s.velocity) <= MIN_V) {
           s.velocity = 0
-          if (!s.manualPause && !externalPauseRef.current) scheduleResume()
+          if (!s.touching && !s.manualPause && !externalPauseRef.current) {
+            scheduleResume(300)
+          }
         }
+        normalize()
+        applyTransform()
+        onTickRef.current?.(s.offset, s.listSize)
+      } else if (s.dirty) {
+        s.dirty = false
+        normalize()
+        applyTransform()
+        onTickRef.current?.(s.offset, s.listSize)
       } else if (!s.paused && !externalPauseRef.current) {
-        const movement = (speedRef.current * delta) / 1000
-        s.offset -= movement
+        s.offset -= (speedRef.current * delta) / 1000
+        normalize()
+        applyTransform()
+        onTickRef.current?.(s.offset, s.listSize)
       }
 
-      normalize()
-      applyTransform()
       s.rafId = requestAnimationFrame(tick)
     }
 
     s.rafId = requestAnimationFrame(tick)
 
-    // ── Wheel ────────────────────────────────────────────────
+    // ── Wheel ─────────────────────────────────────────────────
     const handleWheel = (e) => {
       e.preventDefault()
-
       let px = isY ? e.deltaY : (e.deltaX || e.deltaY)
       if (e.deltaMode === 1) px *= LINE_PX
       if (e.deltaMode === 2) px *= PAGE_PX
@@ -187,49 +206,52 @@ export function InfiniteScroll({
       const isMouse = e.deltaMode === 1 || Math.abs(px) >= MOUSE_THRESH
 
       s.manualPause = false
-      doPause()
+      setPaused(true)
 
       if (isMouse) {
-        const impulse = clamp(-px * WHEEL_FACTOR, -MAX_V, MAX_V)
-        s.velocity = clamp(s.velocity + impulse, -MAX_V, MAX_V)
+        s.velocity = clamp(
+          s.velocity + clamp(-px * WHEEL_FACTOR, -MAX_V, MAX_V),
+          -MAX_V,
+          MAX_V
+        )
       } else {
         s.velocity = 0
         s.offset -= px * 0.85
+        s.dirty = true
         scheduleResume()
       }
     }
 
-    // ── Mouse drag ───────────────────────────────────────────
+    // ── Mouse drag ────────────────────────────────────────────
     const getPos = (e) => isY ? e.clientY : e.clientX
 
     const handleMouseDown = (e) => {
-      s.dragging = true
+      s.touching = true
       s.lastPos = getPos(e)
       s.lastMoveT = performance.now()
       s.velocity = 0
       s.manualPause = false
-      doPause()
+      setPaused(true)
       outer.style.cursor = 'grabbing'
       e.preventDefault()
     }
 
     const handleMouseMove = (e) => {
-      if (!s.dragging) return
+      if (!s.touching) return
       const now = performance.now()
       const dt = Math.max(1, now - s.lastMoveT)
-      const current = getPos(e)
-      const dy = current - s.lastPos
-      s.velocity = s.velocity * 0.6 + (dy / dt * 16.67) * 0.4
+      const cur = getPos(e)
+      const dy = cur - s.lastPos
+      s.velocity = s.velocity * 0.4 + (dy / dt * 16.67) * 0.6
       s.offset += dy
-      s.lastPos = current
+      s.lastPos = cur
       s.lastMoveT = now
-      normalize()
-      applyTransform()
+      s.dirty = true
     }
 
     const handleMouseUp = () => {
-      if (!s.dragging) return
-      s.dragging = false
+      if (!s.touching) return
+      s.touching = false
       outer.style.cursor = 'grab'
       if (Math.abs(s.velocity) <= MIN_V) {
         s.velocity = 0
@@ -237,39 +259,51 @@ export function InfiniteScroll({
       }
     }
 
-    // ── Touch ────────────────────────────────────────────────
+    // ── Touch ─────────────────────────────────────────────────
     const getTouchPos = (e) => isY ? e.touches[0].clientY : e.touches[0].clientX
 
     const handleTouchStart = (e) => {
+      s.touchMoved = false
+      s.touching = true
       s.lastPos = getTouchPos(e)
       s.lastMoveT = performance.now()
       s.velocity = 0
       s.manualPause = false
-      doPause()
+      setPaused(true)
     }
 
     const handleTouchMove = (e) => {
-      e.preventDefault()
+      if (!s.touching) return
       const now = performance.now()
       const dt = Math.max(1, now - s.lastMoveT)
-      const current = getTouchPos(e)
-      const dy = current - s.lastPos
-      s.velocity = s.velocity * 0.6 + (dy / dt * 16.67) * 0.4
+      const cur = getTouchPos(e)
+      const dy = cur - s.lastPos
+      // Only prevent scroll and start dragging after meaningful movement
+      if (!s.touchMoved && Math.abs(dy) < 5) return
+      s.touchMoved = true
+      e.preventDefault()
+      s.velocity = s.velocity * 0.4 + (dy / dt * 16.67) * 0.6
       s.offset += dy
-      s.lastPos = current
+      s.lastPos = cur
       s.lastMoveT = now
-      normalize()
-      applyTransform()
+      s.dirty = true
     }
 
     const handleTouchEnd = () => {
+      s.touching = false
+      // If it was just a tap (no movement), let the click event fire naturally
+      if (!s.touchMoved) {
+        s.velocity = 0
+        scheduleResume(100)
+        return
+      }
       if (Math.abs(s.velocity) <= MIN_V) {
         s.velocity = 0
-        scheduleResume()
+        scheduleResume(300)
       }
     }
 
-    // ── Bind events ──────────────────────────────────────────
+    // ── Bind events ───────────────────────────────────────────
     outer.addEventListener('wheel', handleWheel, { passive: false })
     outer.addEventListener('mousedown', handleMouseDown)
     document.addEventListener('mousemove', handleMouseMove)
@@ -292,20 +326,18 @@ export function InfiniteScroll({
     }
   }, [isY])
 
-  // Sync external pause (viewer open, hover, etc.)
+  // Sync external pause
   useEffect(() => {
     const s = state.current
     if (externalPause) {
       clearTimeout(s.resumeTimer)
       s.paused = true
       s.velocity = 0
-      const cb = onScrollingChangeRef.current
-      if (cb) cb(false)
+      onScrollingChangeRef.current?.(false)
     } else if (!s.manualPause) {
       s.paused = false
       s.lastTime = 0
-      const cb = onScrollingChangeRef.current
-      if (cb) cb(true)
+      onScrollingChangeRef.current?.(true)
     }
   }, [externalPause])
 
@@ -314,15 +346,19 @@ export function InfiniteScroll({
     overflow: 'hidden',
     cursor: 'grab',
     userSelect: 'none',
+    touchAction: isY ? 'pan-x' : 'pan-y',
     width: '100%',
     height: '100%',
   }
 
   const innerStyle = {
     position: 'absolute',
+    top: 0,
+    left: 0,
     willChange: 'transform',
     display: isY ? undefined : 'flex',
     ...style,
+    ...(isY ? {} : { height: '100%' }),
   }
 
   return (

@@ -37,7 +37,7 @@ export function Home() {
   const [projects, setProjects] = useState([])
   const [projectimages, setProjectImages] = useState([])
   const [selected, setSelected] = useState(null)
-  const [highlightedIdx, setHighlightedIdx] = useState(-1)
+  const highlightedGlobalIdxRef = useRef(-1)
   const [viewerImage, setViewerImage] = useState(null)
   const [siteLinks, setSiteLinks] = useState(() => {
     try {
@@ -107,7 +107,6 @@ export function Home() {
   const handleImagesMouseEnter = useCallback(() => {
     clearTimeout(hoverTimerRef.current)
     setHoverPaused(true)
-    // Start 5s timer — resume even if mouse stays
     hoverTimerRef.current = setTimeout(() => {
       setHoverPaused(false)
     }, HOVER_PAUSE_MS)
@@ -118,7 +117,6 @@ export function Home() {
     setHoverPaused(false)
   }, [])
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => clearTimeout(hoverTimerRef.current)
   }, [])
@@ -128,6 +126,28 @@ export function Home() {
 
   const screenWidth = useWindowWidth()
   const isMobile = screenWidth <= 1157
+
+  // ── Selector/wrapper measurements (measured once, not per tick) ──
+  const selectorMetricsRef = useRef({ start: 0, size: 0, wrapperSize: 0 })
+  const selectorRef = useRef(null)
+  useEffect(() => {
+    const selector = selectorRef.current
+    if (!selector) return
+    const wrapper = selector.parentElement
+    if (!wrapper) return
+
+    const measure = () => {
+      selectorMetricsRef.current = isMobile
+        ? { start: selector.offsetLeft, size: selector.offsetWidth, wrapperSize: wrapper.clientWidth }
+        : { start: selector.offsetTop, size: selector.offsetHeight, wrapperSize: wrapper.clientHeight }
+    }
+    measure()
+
+    const ro = new ResizeObserver(measure)
+    ro.observe(selector)
+    ro.observe(wrapper)
+    return () => ro.disconnect()
+  }, [isMobile])
 
   const allProjectItems = useMemo(
     () => [...projects, ...projects, ...projects, ...projects],
@@ -155,56 +175,66 @@ export function Home() {
       .catch(err => console.error('Error fetching images:', err))
   }, [])
 
-  // Selector detection
-  useEffect(() => {
-    if (projects.length === 0) return
+  // ── Selector detection via onTick (no DOM reads) ──
+  const COPIES = 4
+  const prevGlobalIdxRef = useRef(-1)
+  const selectedDebounceRef = useRef(null)
+  const onProjectsTick = useCallback((offset, listSize) => {
+    if (!listSize || projects.length === 0) return
+    const { start, size, wrapperSize } = selectorMetricsRef.current
+    if (!size) return
 
-    const interval = setInterval(() => {
-      const selector = document.querySelector('.selector')
-      const container = document.querySelector('.carrousel-y')
-      if (!selector || !container) return
+    const count = projects.length
+    const totalItems = count * COPIES
+    const selectorCenter = start + size / 2
 
-      const items = container.querySelectorAll('.project-item')
-      if (items.length === 0) return
+    const slotSize = listSize / count
+    const posInList = -offset + selectorCenter
 
-      const selectorRect = selector.getBoundingClientRect()
-      const selectorCenter = isMobile
-        ? (selectorRect.left + selectorRect.right) / 2
-        : (selectorRect.top + selectorRect.bottom) / 2
+    // Global index across all 4 copies
+    const globalIdx = Math.floor(posInList / slotSize)
+    const clampedGlobal = Math.max(0, Math.min(globalIdx, totalItems - 1))
 
-      let minDistance = Infinity
-      let closestIdx = -1
+    // Logical index within one copy
+    const wrappedPos = ((posInList % listSize) + listSize) % listSize
+    const idx = Math.floor(wrappedPos / slotSize) % count
 
-      items.forEach((item, idx) => {
-        const itemRect = item.getBoundingClientRect()
-        const itemCenter = isMobile
-          ? (itemRect.left + itemRect.right) / 2
-          : (itemRect.top + itemRect.bottom) / 2
-        const distance = Math.abs(selectorCenter - itemCenter)
-        if (distance < minDistance) {
-          minDistance = distance
-          closestIdx = idx
-        }
-      })
+    // ── Bug 2 fix: direct DOM mutation for fontWeight, no setState ──
+    if (clampedGlobal !== prevGlobalIdxRef.current) {
+      const prevIdx = prevGlobalIdxRef.current
+      prevGlobalIdxRef.current = clampedGlobal
+      highlightedGlobalIdxRef.current = clampedGlobal
 
-      if (closestIdx >= 0) {
-        setHighlightedIdx(closestIdx)
-        const projectId = parseInt(items[closestIdx].dataset.key)
+      const items = selectorRef.current?.parentElement?.querySelectorAll('.project-item')
+      if (items) {
+        if (prevIdx >= 0 && items[prevIdx]) items[prevIdx].style.fontWeight = '300'
+        if (items[clampedGlobal]) items[clampedGlobal].style.fontWeight = '500'
+      }
+    }
+
+    // ── Bug 3 fix: debounce setSelected to ~100ms ──
+    const realIdx = idx % count
+    const projectId = projects[realIdx]?.project_id
+    if (projectId !== undefined && projectId !== selectedRef.current) {
+      clearTimeout(selectedDebounceRef.current)
+      selectedDebounceRef.current = setTimeout(() => {
         if (projectId !== selectedRef.current) {
           setSelected(projectId)
         }
-      }
-    }, 33)
-
-    return () => clearInterval(interval)
-  }, [projects.length, isMobile])
+      }, 100)
+    }
+  }, [projects])
 
   const filteredImages = useMemo(
     () => projectimages.filter(img => img.project_id == selected),
     [projectimages, selected]
   )
 
-  // Both scrolls pause on: viewer open OR hover on images area
+  const displayImages = useMemo(
+    () => [...filteredImages, ...filteredImages, ...filteredImages, ...filteredImages],
+    [filteredImages]
+  )
+
   const pauseBoth = viewerOpen || hoverPaused
 
   return (
@@ -213,20 +243,21 @@ export function Home() {
 
       <div className="container">
         <div className="sidebar">
-          <div className="selector"></div>
+          <div className="selector" ref={selectorRef}></div>
           <div className="carrousel-y-wrapper">
             <InfiniteScroll
               axis={isMobile ? 'x' : 'y'}
               speed={scrollSpeeds.projects}
               pause={pauseBoth}
               className="carrousel-y"
+              onTick={onProjectsTick}
             >
               {allProjectItems.map((project, index) => (
                 <div
                   className='project-item'
                   key={`project-${index}`}
                   data-key={project.project_id}
-                  style={{ fontWeight: index === highlightedIdx ? 500 : 300 }}
+                  style={{ fontWeight: 300 }}
                   onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
                 >
                   {project.project_name}
@@ -247,7 +278,7 @@ export function Home() {
               pause={pauseBoth}
               className="carrousel-work"
             >
-              {[...filteredImages, ...filteredImages, ...filteredImages, ...filteredImages].map((image, index) => (
+              {displayImages.map((image, index) => (
                 <ClickableImage
                   key={`image-${index}`}
                   src={image.img_route}
