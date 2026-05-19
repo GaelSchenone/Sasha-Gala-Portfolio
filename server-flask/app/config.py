@@ -41,7 +41,7 @@ class Config:
     ALLOWED_ADMINS = [e.strip() for e in _admin_emails.split(',') if e.strip()]
 
     # CORS allowed origins
-    _allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,https://sasha.aguilucho.ar')
+    _allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,https://sasha.aguilucho.ar,https://sashagala.com.ar')
     ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins.split(',') if o.strip()]
 
     # JWT - fail loudly if JWT_SECRET missing in production
