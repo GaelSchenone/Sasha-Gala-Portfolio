@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder } from 'framer-motion';
-import { projectService, validateImageFile, getTokenExpiresInMs } from '../services/api';
+import { projectService, validateImageFile, compressImage, getTokenExpiresInMs } from '../services/api';
 import './ProjectEditor.css';
 import './View.css';
 
@@ -207,12 +207,12 @@ export function ProjectEditor() {
       return false;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('project_id', id);
-
     setUploading(true);
     try {
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('project_id', id);
       const response = await projectService.uploadImage(formData);
       if (!response?.image?.img_route) {
         alert('Error: el servidor no devolvió la imagen.');

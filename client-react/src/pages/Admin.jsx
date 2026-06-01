@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { projectService, archiveService, siteConfigService, validateImageFile } from '../services/api';
+import { projectService, archiveService, siteConfigService, validateImageFile, compressImage } from '../services/api';
 import './Admin.css';
 
 const TABS = ['Proyectos', 'Archivo', 'About', 'Diseño'];
@@ -231,9 +231,10 @@ function ArchiveTab() {
     if (validationError) {
       return { file, error: validationError };
     }
-    const formData = new FormData();
-    formData.append('file', file);
     try {
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append('file', compressed);
       const res = await archiveService.upload(formData);
       if (res?.image) {
         setImages(prev => [...prev, res.image]);

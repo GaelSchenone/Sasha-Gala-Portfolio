@@ -141,6 +141,62 @@ export const validateImageFile = (file) => {
   return null;
 };
 
+// Compresses large images in the browser before upload.
+// Cloudinary free tier rejects files > 10MB; this brings any photo well under
+// that limit without visible quality loss. Skips small files and HEIC (canvas
+// can't decode HEIC reliably across browsers — the server handles those).
+export const compressImage = async (file, { maxDimension = 3000, quality = 0.9, threshold = 2 * 1024 * 1024 } = {}) => {
+  if (file.size < threshold) return file;
+
+  const ext = (file.name?.split('.').pop() || '').toLowerCase();
+  if (ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif') {
+    return file;
+  }
+  if (file.type === 'image/gif') return file; // don't flatten animated gifs
+
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        const scale = Math.min(maxDimension / width, maxDimension / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob || blob.size >= file.size) {
+            resolve(file); // compression made it worse — keep original
+            return;
+          }
+          const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+          resolve(new File([blob], newName, { type: 'image/jpeg', lastModified: file.lastModified }));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file); // can't decode (rare format, corrupted) — let the server try
+    };
+
+    img.src = url;
+  });
+};
+
 export const projectService = {
   getAll: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
