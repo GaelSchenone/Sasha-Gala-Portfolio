@@ -1,38 +1,35 @@
+import threading
 import mysql.connector
 from mysql.connector import pooling
 from .config import Config
 
 db_pool = None
+_pool_lock = threading.Lock()
+
+
+def _build_pool(pool_name):
+    return mysql.connector.pooling.MySQLConnectionPool(
+        pool_name=pool_name,
+        pool_size=5,
+        user=Config.DB_USER,
+        password=Config.DB_PASSWORD,
+        host=Config.DB_HOST,
+        port=Config.DB_PORT,
+        database=Config.DB_NAME,
+        connect_timeout=10,
+    )
+
 
 def init_db(app):
     global db_pool
-    db_name = Config.DB_NAME
-    # Escape database name with hyphens for MySQL/MariaDB compatibility
-    if '-' in db_name and not db_name.startswith('`'):
-        db_name_escaped = f'`{db_name}`'
-    else:
-        db_name_escaped = db_name
-
-    db_config = {
-        "user": Config.DB_USER,
-        "password": Config.DB_PASSWORD,
-        "host": Config.DB_HOST,
-        "port": Config.DB_PORT,
-        "database": db_name,
-        "connect_timeout": 10,
-        "pool_name": "mypool",
-        "pool_size": 5,
-    }
-
-    print(f"[STARTUP] Connecting to DB: {Config.DB_USER}@{Config.DB_HOST}:{Config.DB_PORT}/{db_name}", flush=True)
-
-    try:
-        db_pool = mysql.connector.pooling.MySQLConnectionPool(**db_config)
-        print("[STARTUP] Database pool initialized successfully", flush=True)
-    except mysql.connector.Error as err:
-        print(f"[STARTUP] Error initializing database pool: {err}", flush=True)
-        # Don't raise — let the app start so /health can report db status
-        db_pool = None
+    print(f"[STARTUP] Connecting to DB: {Config.DB_USER}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}", flush=True)
+    with _pool_lock:
+        try:
+            db_pool = _build_pool("mypool")
+            print("[STARTUP] Database pool initialized successfully", flush=True)
+        except mysql.connector.Error as err:
+            print(f"[STARTUP] Error initializing database pool: {err}", flush=True)
+            db_pool = None
 
 
 def get_db_connection():
@@ -41,37 +38,32 @@ def get_db_connection():
         try:
             return db_pool.get_connection()
         except mysql.connector.Error as err:
-            print(f"Error getting DB connection: {err}")
+            print(f"Error getting DB connection, attempting to reinit pool: {err}")
+            with _pool_lock:
+                try:
+                    db_pool = _build_pool("mypool_retry")
+                    return db_pool.get_connection()
+                except mysql.connector.Error as err2:
+                    print(f"Error reinitializing DB pool: {err2}")
+                    return None
+    with _pool_lock:
+        if db_pool:
             try:
-                db_pool = mysql.connector.pooling.MySQLConnectionPool(
-                    pool_name="mypool_retry",
-                    pool_size=5,
-                    user=Config.DB_USER,
-                    password=Config.DB_PASSWORD,
-                    host=Config.DB_HOST,
-                    port=Config.DB_PORT,
-                    database=Config.DB_NAME,
-                    connect_timeout=5,
-                )
                 return db_pool.get_connection()
-            except mysql.connector.Error as err2:
-                print(f"Error reinitializing DB pool: {err2}")
-    else:
+            except mysql.connector.Error:
+                pass
         try:
-            db_pool = mysql.connector.pooling.MySQLConnectionPool(
-                pool_name="mypool_init",
-                pool_size=5,
-                user=Config.DB_USER,
-                password=Config.DB_PASSWORD,
-                host=Config.DB_HOST,
-                port=Config.DB_PORT,
-                database=Config.DB_NAME,
-                connect_timeout=5,
-            )
+            db_pool = _build_pool("mypool_init")
             return db_pool.get_connection()
         except mysql.connector.Error as err:
             print(f"Error creating DB pool on first query: {err}")
-    return None
+            return None
+
+
+class DBError(Exception):
+    """Raised when a query fails for infrastructure reasons (connection, syntax, etc.).
+    Lets callers distinguish 'no rows' (returns None/[]) from real failures.
+    """
 
 
 def execute_query(query, params=None, dictionary=True, fetch_one=False):
@@ -86,7 +78,7 @@ def execute_query(query, params=None, dictionary=True, fetch_one=False):
 
         stripped = query.strip().upper()
 
-        if stripped.startswith(('INSERT',)):
+        if stripped.startswith('INSERT'):
             cnx.commit()
             return cursor.lastrowid
 
@@ -101,13 +93,25 @@ def execute_query(query, params=None, dictionary=True, fetch_one=False):
     except mysql.connector.Error as err:
         print(f"Database error: {err}")
         print(f"Failed query: {query[:200]}")
-        cnx.rollback()
+        try:
+            cnx.rollback()
+        except Exception:
+            pass
         return None
     except Exception as e:
         print(f"Unexpected DB error: {e}")
         print(f"Failed query: {query[:200]}")
-        cnx.rollback()
+        try:
+            cnx.rollback()
+        except Exception:
+            pass
         return None
     finally:
-        cursor.close()
-        cnx.close()
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        try:
+            cnx.close()
+        except Exception:
+            pass

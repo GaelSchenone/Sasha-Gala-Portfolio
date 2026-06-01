@@ -28,4 +28,4 @@ EXPOSE 5000
 
 # Run the application — use PORT env var if set (Dokploy), fallback to 5000
 ENV PORT=5000
-CMD ["sh", "-c", "gunicorn wsgi:app --bind 0.0.0.0:${PORT} --workers 1 --timeout 120 --access-logfile -"]
+CMD ["sh", "-c", "gunicorn wsgi:app --bind 0.0.0.0:${PORT} --workers 3 --threads 4 --timeout 300 --access-logfile -"]

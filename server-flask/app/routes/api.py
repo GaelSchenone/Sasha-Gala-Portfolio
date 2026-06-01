@@ -256,13 +256,8 @@ def get_site_config():
     DEFAULT = {"name": "Sasha Gala", "description": "", "stack": "", "links": []}
     config = execute_query("SELECT * FROM site_config LIMIT 1", fetch_one=True)
     if not config:
-        new_id = execute_query(
-            "INSERT INTO site_config (config_data) VALUES (%s)",
-            (json.dumps(DEFAULT),)
-        )
-        config = execute_query("SELECT * FROM site_config LIMIT 1", fetch_one=True)
-
-    if not config:
+        # Return DEFAULT without writing — PUT will INSERT the first time the admin saves.
+        # Avoids race conditions where parallel GETs would create duplicate rows.
         return jsonify({'config': {'id': 0, 'config_data': DEFAULT}})
 
     if config.get('config_data') and isinstance(config['config_data'], str):
@@ -335,7 +330,9 @@ def update_project(project_id):
     new_layout = data.get('layout_json', {"sections": []})
     layout_str = json.dumps(new_layout)
 
-    # Get current layout to find orphaned images
+    # Compute removed URLs BEFORE the UPDATE so we know what to clean up after success.
+    # We DO NOT delete from Cloudinary/DB until the UPDATE succeeds — prevents broken images
+    # if the UPDATE fails halfway.
     current = execute_query(
         "SELECT layout_json FROM proyectos WHERE project_id = %s",
         (project_id,), fetch_one=True
@@ -353,19 +350,6 @@ def update_project(project_id):
 
     new_urls = extract_layout_urls(new_layout)
     removed_urls = old_urls - new_urls
-
-    # Delete orphaned images from DB and Cloudinary
-    if removed_urls:
-        for url in removed_urls:
-            img = execute_query(
-                "SELECT img_id, cloudinary_public_id FROM images WHERE img_route = %s AND project_id = %s",
-                (url, project_id), fetch_one=True
-            )
-            if img:
-                execute_query("DELETE FROM images WHERE img_id = %s", (img['img_id'],))
-                pid = img.get('cloudinary_public_id')
-                if pid:
-                    delete_from_cloudinary(pid)
 
     query = """
         UPDATE proyectos SET
@@ -391,6 +375,20 @@ def update_project(project_id):
     result = execute_query(query, params)
     if result is None:
         return jsonify({'error': 'DB Error'}), 500
+
+    # UPDATE succeeded — now safe to clean up removed images.
+    # If this fails partway, worst case is orphaned rows / Cloudinary storage,
+    # not broken layouts.
+    for url in removed_urls:
+        img = execute_query(
+            "SELECT img_id, cloudinary_public_id FROM images WHERE img_route = %s AND project_id = %s",
+            (url, project_id), fetch_one=True
+        )
+        if img:
+            execute_query("DELETE FROM images WHERE img_id = %s", (img['img_id'],))
+            pid = img.get('cloudinary_public_id')
+            if pid:
+                delete_from_cloudinary(pid)
 
     updated = execute_query(
         "SELECT * FROM proyectos WHERE project_id = %s",

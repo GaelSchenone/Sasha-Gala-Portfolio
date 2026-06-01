@@ -35,24 +35,14 @@ def create_app():
             response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
         return response
 
-    # Health check
+    # Health check — public, minimal info to avoid infra enumeration
     @app.route('/health')
     def health():
         from .database import db_pool
-        db_status = 'connected' if db_pool else 'disconnected'
         return jsonify({
-            'status': 'ok',
-            'db': db_status,
-            'in_docker': _in_docker,
-            'debug': Config.DEBUG,
-            'db_host': Config.DB_HOST,
-            'db_name': Config.DB_NAME,
-            'cloudinary': bool(Config.CLOUDINARY_CLOUD_NAME),
+            'status': 'ok' if db_pool else 'degraded',
+            'db': 'connected' if db_pool else 'disconnected',
         })
 
     print("[STARTUP] Flask app created successfully", flush=True)
     return app
-
-
-# Create app instance for gunicorn
-app = create_app()
