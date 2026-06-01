@@ -1,5 +1,4 @@
 import os
-import warnings
 from dotenv import load_dotenv
 
 # Load .env - try project root first (dev), then same dir as app/ (prod)
@@ -22,14 +21,15 @@ class Config:
     DB_PORT = int(os.getenv('DB_PORT', '3306'))
     DB_NAME = os.getenv('DB_NAME', 'testpy')
 
-    # Flask - fail loudly if SECRET_KEY missing in production
+    # Flask - HARD FAIL if SECRET_KEY missing in production (no insecure default)
     SECRET_KEY = os.getenv('SECRET_KEY')
     if not SECRET_KEY:
         if _in_docker:
-            warnings.warn("SECRET_KEY not set - using insecure default. Set it in your environment!", stacklevel=2)
-            SECRET_KEY = 'INSECURE-CHANGE-ME'
-        else:
-            SECRET_KEY = 'dev_key_sasha_portfolio_2024'
+            raise RuntimeError(
+                "SECRET_KEY environment variable is required in production. "
+                "Set it in your hosting provider (Dokploy)."
+            )
+        SECRET_KEY = 'dev_key_sasha_portfolio_2024'
 
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
@@ -44,14 +44,15 @@ class Config:
     _allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,https://sasha.aguilucho.ar,https://sashagala.com.ar')
     ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins.split(',') if o.strip()]
 
-    # JWT - fail loudly if JWT_SECRET missing in production
+    # JWT - HARD FAIL if JWT_SECRET missing in production (no insecure default)
     JWT_SECRET = os.getenv('JWT_SECRET')
     if not JWT_SECRET:
         if _in_docker:
-            warnings.warn("JWT_SECRET not set - using insecure default. Set it in your environment!", stacklevel=2)
-            JWT_SECRET = 'INSECURE-CHANGE-ME'
-        else:
-            JWT_SECRET = 'dev_jwt_key_change_in_production'
+            raise RuntimeError(
+                "JWT_SECRET environment variable is required in production. "
+                "Set it in your hosting provider (Dokploy)."
+            )
+        JWT_SECRET = 'dev_jwt_key_change_in_production'
 
     # Base dir = directory where wsgi.py / app/ lives
     BASE_DIR = _server_dir

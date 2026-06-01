@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import jwt
@@ -19,40 +19,28 @@ def token_required(f):
 
         token = auth_header
         if token.startswith('Bearer '):
-            token = token.split(" ")[1]
+            token = token.split(" ", 1)[1]
 
         try:
             data = jwt.decode(token, Config.JWT_SECRET, algorithms=["HS256"])
             request.current_user = data
         except jwt.ExpiredSignatureError:
             return jsonify({'message': 'Token expired!'}), 401
-        except Exception as e:
-            return jsonify({'message': 'Token is invalid!', 'error': str(e)}), 401
+        except Exception:
+            # Don't leak jwt library internals via str(e) to the client
+            return jsonify({'message': 'Token is invalid!'}), 401
 
         return f(*args, **kwargs)
     return decorated
 
-
-@auth_bp.route('/test', methods=['POST'])
-def test_endpoint():
-    data = request.get_json()
-    return jsonify({
-        'received': data,
-        'client_id': Config.GOOGLE_CLIENT_ID,
-        'allowed_admins': Config.ALLOWED_ADMINS
-    })
 
 @auth_bp.route('/google-login', methods=['POST', 'OPTIONS'])
 def google_login():
     if request.method == 'OPTIONS':
         return '', 200
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     token = data.get('token')
-
-    # Logging temporal
-    print(f"Token recibido: {token[:20] if token else 'VACIO/NONE'}", flush=True)
-    print(f"GOOGLE_CLIENT_ID: {Config.GOOGLE_CLIENT_ID}", flush=True)
 
     if not token:
         return jsonify({'error': 'No token provided'}), 400
@@ -63,6 +51,14 @@ def google_login():
             google_requests.Request(),
             Config.GOOGLE_CLIENT_ID
         )
+
+        # Defense in depth: id_token.verify_oauth2_token already checks aud/iss/exp,
+        # but explicit checks here are cheap insurance and document intent.
+        if idinfo.get('iss') not in ('accounts.google.com', 'https://accounts.google.com'):
+            return jsonify({'error': 'Invalid token issuer'}), 401
+
+        if not idinfo.get('email_verified'):
+            return jsonify({'error': 'Email no verificado en Google'}), 403
 
         email = idinfo['email']
         name = idinfo.get('name', '')
@@ -92,9 +88,10 @@ def google_login():
             'user': {'email': email, 'name': name}
         })
 
-    except ValueError as e:
-        print(f"ValueError: {e}", flush=True)
-        return jsonify({'error': 'Invalid Google token', 'detail': str(e)}), 400
-    except Exception as e:
-        print(f"Exception: {e}", flush=True)
-        return jsonify({'error': 'Server error', 'detail': str(e)}), 500
+    except ValueError:
+        # Invalid token signature/audience/expiry — log internally, generic message out
+        current_app.logger.exception("Google token verification failed")
+        return jsonify({'error': 'Invalid Google token'}), 401
+    except Exception:
+        current_app.logger.exception("Unexpected error during Google login")
+        return jsonify({'error': 'Server error'}), 500
