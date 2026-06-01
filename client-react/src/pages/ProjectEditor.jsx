@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder } from 'framer-motion';
-import { projectService } from '../services/api';
+import { projectService, validateImageFile } from '../services/api';
 import './ProjectEditor.css';
 import './View.css';
 
@@ -53,6 +53,7 @@ export function ProjectEditor() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const fileInputRef = useRef(null);
   const [activeSlot, setActiveSlot] = useState(null);
@@ -179,39 +180,49 @@ export function ProjectEditor() {
   };
 
   const uploadImageToSlot = async (file, sectionId, rowIdx, colIdx) => {
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      alert(validationError);
+      return false;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('project_id', id);
 
+    setUploading(true);
     try {
       const response = await projectService.uploadImage(formData);
-      if (response.image && response.image.img_route) {
-        const newSlot = { src: response.image.img_route, fit: 'cover', position: 'center' };
-        const newSections = project.layout_json.sections.map(sec => {
-          if (sec.id === sectionId) {
-            const rows = sec.rows.map((row, ri) => {
-              if (ri === rowIdx) {
-                const padded = [...row];
-                while (padded.length <= colIdx) padded.push(null);
-                padded[colIdx] = newSlot;
-                return padded;
-              }
-              return row;
-            });
-            return { ...sec, rows };
-          }
-          return sec;
-        });
-        updateSections(newSections);
-        setSelectedImage({ sectionId, rowIdx, colIdx });
-        return true;
-      } else {
-        alert('Error: No se recibio la ruta de la imagen.');
+      if (!response?.image?.img_route) {
+        alert('Error: el servidor no devolvió la imagen.');
+        return false;
       }
+      const newSlot = { src: response.image.img_route, fit: 'cover', position: 'center' };
+      const newSections = project.layout_json.sections.map(sec => {
+        if (sec.id === sectionId) {
+          const rows = sec.rows.map((row, ri) => {
+            if (ri === rowIdx) {
+              const padded = [...row];
+              while (padded.length <= colIdx) padded.push(null);
+              padded[colIdx] = newSlot;
+              return padded;
+            }
+            return row;
+          });
+          return { ...sec, rows };
+        }
+        return sec;
+      });
+      updateSections(newSections);
+      setSelectedImage({ sectionId, rowIdx, colIdx });
+      return true;
     } catch (error) {
-      alert('Error al subir imagen');
+      console.error('Upload error:', error);
+      alert(`Error al subir la imagen: ${error.message || 'desconocido'}`);
+      return false;
+    } finally {
+      setUploading(false);
     }
-    return false;
   };
 
   const handleImageClick = (sectionId, rowIdx, colIdx) => {
@@ -306,7 +317,7 @@ export function ProjectEditor() {
 
   return (
     <div className="studio-container">
-      <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} accept="image/*" />
+      <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif" />
 
       {/* ── EXIT PROMPT MODAL ── */}
       {showExitPrompt && (
@@ -335,11 +346,12 @@ export function ProjectEditor() {
         <div className="sidebar-header">
           <button onClick={handleBack} className="btn-back">← VOLVER</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {uploading && <span className="unsaved-badge" style={{ background: '#fff3e0', color: '#e65100' }}>Subiendo...</span>}
             {dirty && <span className="unsaved-badge">Sin guardar</span>}
             <span className="status-pill" style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}>
               {statusInfo.label}
             </span>
-            <button className="btn-save-sm" onClick={saveAll} disabled={saving}>
+            <button className="btn-save-sm" onClick={saveAll} disabled={saving || uploading}>
               {saving ? '...' : 'GUARDAR'}
             </button>
           </div>

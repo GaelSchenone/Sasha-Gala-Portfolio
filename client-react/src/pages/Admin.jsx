@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { projectService, archiveService, siteConfigService } from '../services/api';
+import { projectService, archiveService, siteConfigService, validateImageFile } from '../services/api';
 import './Admin.css';
 
 const TABS = ['Proyectos', 'Archivo', 'About', 'Diseño'];
@@ -209,6 +209,8 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
 function ArchiveTab() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErrors, setUploadErrors] = useState([]);
   const fileInputRef = useRef(null);
   const gridRef = useRef(null);
 
@@ -224,33 +226,47 @@ function ArchiveTab() {
     finally { setLoading(false); }
   };
 
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
-      try {
-        const res = await archiveService.upload(formData);
-        if (res.image) {
-          setImages(prev => [...prev, res.image]);
-        }
-      } catch (err) { console.error(err); }
+  const uploadOne = async (file) => {
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      return { file, error: validationError };
     }
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await archiveService.upload(formData);
+      if (res?.image) {
+        setImages(prev => [...prev, res.image]);
+        return { file, ok: true };
+      }
+      return { file, error: 'El servidor no devolvió la imagen.' };
+    } catch (err) {
+      console.error('Archive upload error:', err);
+      return { file, error: err.message || 'Error desconocido' };
+    }
+  };
+
+  const uploadMany = async (files) => {
+    if (!files.length) return;
+    setUploading(true);
+    setUploadErrors([]);
+    const results = await Promise.all(files.map(uploadOne));
+    const errors = results
+      .filter(r => r.error)
+      .map(r => `${r.file.name}: ${r.error}`);
+    if (errors.length) setUploadErrors(errors);
+    setUploading(false);
+  };
+
+  const handleUpload = async (e) => {
+    await uploadMany(Array.from(e.target.files));
     e.target.value = '';
   };
 
   const handleDrop = async (e) => {
     e.preventDefault();
     e.currentTarget.classList.remove('archive-drop-active');
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
-      try {
-        const res = await archiveService.upload(formData);
-        if (res.image) setImages(prev => [...prev, res.image]);
-      } catch (err) { console.error(err); }
-    }
+    await uploadMany(Array.from(e.dataTransfer.files));
   };
 
   const handleDelete = async (imgId) => {
@@ -275,9 +291,26 @@ function ArchiveTab() {
     <section className="admin-section">
       <div className="admin-section-header">
         <h2 className="admin-section-title">Archivo</h2>
-        <button onClick={() => fileInputRef.current.click()} className="btn-add-project">+ Añadir Fotos</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {uploading && <span style={{ fontSize: '12px', color: '#e65100' }}>Subiendo...</span>}
+          <button onClick={() => fileInputRef.current.click()} className="btn-add-project" disabled={uploading}>
+            + Añadir Fotos
+          </button>
+        </div>
       </div>
-      <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />
+      <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif" style={{ display: 'none' }} onChange={handleUpload} />
+
+      {uploadErrors.length > 0 && (
+        <div style={{ background: '#fdecea', color: '#b00020', padding: '10px 14px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px' }}>
+          <div style={{ fontWeight: 600, marginBottom: '4px' }}>No se pudieron subir {uploadErrors.length} archivo(s):</div>
+          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+            {uploadErrors.map((msg, i) => <li key={i}>{msg}</li>)}
+          </ul>
+          <button onClick={() => setUploadErrors([])} style={{ background: 'none', border: 'none', color: '#b00020', cursor: 'pointer', padding: '4px 0 0', fontSize: '12px' }}>
+            Cerrar
+          </button>
+        </div>
+      )}
 
       <div
         ref={gridRef}

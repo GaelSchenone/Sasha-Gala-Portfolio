@@ -62,23 +62,57 @@ const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
-const uploadWithAuth = (endpoint, formData) => {
+const uploadWithAuth = async (endpoint, formData) => {
   const token = localStorage.getItem('adminToken');
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(`${BASE_URL}${endpoint}`, {
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers,
     body: formData,
-  }).then(res => {
-    if (res.status === 401) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
-      window.location.href = '/login';
-      throw new Error('Session expired');
-    }
-    return res.json();
   });
+
+  if (res.status === 401) {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    // body wasn't JSON (proxy error HTML, etc.)
+  }
+
+  if (!res.ok) {
+    const detail = body?.error || `HTTP ${res.status}`;
+    throw new Error(detail);
+  }
+
+  return body;
+};
+
+export const ALLOWED_IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+export const validateImageFile = (file) => {
+  if (!file) return 'No se recibió ningún archivo';
+  const ext = (file.name?.split('.').pop() || '').toLowerCase();
+  const typeOk = file.type?.startsWith('image/') || ALLOWED_IMAGE_EXTS.includes(ext);
+  if (!ALLOWED_IMAGE_EXTS.includes(ext) && !typeOk) {
+    return `Formato no soportado: ${file.name}. Usá JPG, PNG, WebP, GIF o HEIC.`;
+  }
+  if (file.size === 0) {
+    return `${file.name} está vacío. Si está en iCloud, descargalo primero al dispositivo.`;
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    return `${file.name} pesa ${mb} MB. El máximo es 50 MB.`;
+  }
+  return null;
 };
 
 export const projectService = {
