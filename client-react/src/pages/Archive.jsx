@@ -21,7 +21,7 @@ export function Archive() {
   const closeViewer = () => setViewerImage(null)
 
   useEffect(() => {
-    fetch(`${BASE_URL}/archive`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+    fetch(`${BASE_URL}/archive`)
       .then((res) => res.json())
       .then((data) => {
         if (data.images) {

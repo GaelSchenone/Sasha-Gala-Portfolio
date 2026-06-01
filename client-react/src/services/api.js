@@ -95,6 +95,32 @@ const uploadWithAuth = async (endpoint, formData) => {
   return body;
 };
 
+// JWT helpers — decode payload without verification (verification happens on the server)
+const decodeJwt = (token) => {
+  try {
+    const [, payloadB64] = token.split('.');
+    if (!payloadB64) return null;
+    const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
+export const isTokenExpired = (token) => {
+  if (!token) return true;
+  const payload = decodeJwt(token);
+  if (!payload?.exp) return false;
+  return Date.now() >= payload.exp * 1000;
+};
+
+export const getTokenExpiresInMs = (token) => {
+  if (!token) return 0;
+  const payload = decodeJwt(token);
+  if (!payload?.exp) return Infinity;
+  return Math.max(0, payload.exp * 1000 - Date.now());
+};
+
 export const ALLOWED_IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder } from 'framer-motion';
-import { projectService, validateImageFile } from '../services/api';
+import { projectService, validateImageFile, getTokenExpiresInMs } from '../services/api';
 import './ProjectEditor.css';
 import './View.css';
 
@@ -54,12 +54,33 @@ export function ProjectEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [savedAt, setSavedAt] = useState(0);
+  const [sessionWarning, setSessionWarning] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const fileInputRef = useRef(null);
   const [activeSlot, setActiveSlot] = useState(null);
   const [dragOverSlot, setDragOverSlot] = useState(null);
   const savedProjectRef = useRef(null);
   const [showExitPrompt, setShowExitPrompt] = useState(false);
+
+  // Auto-hide "Guardado" toast after 2s
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(0), 2000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
+  // Warn user 5 minutes before JWT expires so they can save before being logged out
+  useEffect(() => {
+    const check = () => {
+      const token = localStorage.getItem('adminToken');
+      const msLeft = getTokenExpiresInMs(token);
+      setSessionWarning(msLeft > 0 && msLeft < 5 * 60 * 1000);
+    };
+    check();
+    const interval = setInterval(check, 30 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Detect unsaved changes by comparing current project with saved version
   const hasUnsavedChanges = useCallback(() => {
@@ -294,8 +315,10 @@ export function ProjectEditor() {
     try {
       await projectService.update(id, project);
       savedProjectRef.current = JSON.parse(JSON.stringify(project));
+      setSavedAt(Date.now());
     } catch (error) {
-      alert('Error al guardar');
+      console.error('Save error:', error);
+      alert(`Error al guardar: ${error.message || 'desconocido'}`);
     } finally {
       setSaving(false);
     }
@@ -343,9 +366,22 @@ export function ProjectEditor() {
 
       {/* ── SIDEBAR ── */}
       <div className="studio-sidebar">
+        {sessionWarning && (
+          <div style={{
+            background: '#fff3cd',
+            color: '#856404',
+            padding: '8px 12px',
+            fontSize: '12px',
+            borderBottom: '1px solid #ffeaa7',
+            fontWeight: 600,
+          }}>
+            ⚠ Tu sesión está por vencerse. Guardá tus cambios.
+          </div>
+        )}
         <div className="sidebar-header">
           <button onClick={handleBack} className="btn-back">← VOLVER</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {savedAt > 0 && <span className="unsaved-badge" style={{ background: '#e6f4ea', color: '#1e8e3e' }}>✓ Guardado</span>}
             {uploading && <span className="unsaved-badge" style={{ background: '#fff3e0', color: '#e65100' }}>Subiendo...</span>}
             {dirty && <span className="unsaved-badge">Sin guardar</span>}
             <span className="status-pill" style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}>

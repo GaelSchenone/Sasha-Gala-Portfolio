@@ -8,7 +8,9 @@ import { About } from './pages/About'
 import { Login } from './pages/Login'
 import { Admin } from './pages/Admin'
 import { ProjectEditor } from './pages/ProjectEditor'
+import { NotFound } from './pages/NotFound'
 import { TypographyProvider } from './componentes/TypographyProvider'
+import { ProtectedRoute } from './componentes/ProtectedRoute'
 import { siteConfigService } from './services/api'
 
 function App() {
@@ -31,8 +33,9 @@ function App() {
           <Route path="/Archive" element={<Archive />} />
           <Route path="/About" element={<About />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/edit/:id" element={<ProjectEditor />} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/admin/edit/:id" element={<ProtectedRoute><ProjectEditor /></ProtectedRoute>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </TypographyProvider>
