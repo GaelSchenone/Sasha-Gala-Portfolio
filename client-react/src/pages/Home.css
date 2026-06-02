@@ -112,7 +112,7 @@ body,
     transition: font-weight 0.15s ease-in;
 }
 
-.project-item[data-selected="true"] .project-item-label {
+.project-item.is-selected .project-item-label {
     font-weight: 500;
 }
 

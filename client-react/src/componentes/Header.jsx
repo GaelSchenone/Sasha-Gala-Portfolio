@@ -13,7 +13,7 @@ export function getSiteName() {
 
 export function Header() {
   const [showBar, setShowbar] = useState(window.innerWidth > 960)
-  const [siteName, setSiteName] = useState(siteNameCache || 'Sasha Gala')
+  const [siteName, setSiteName] = useState(siteNameCache || siteConfigService.getCached()?.name || 'Sasha Gala')
   const controls = useAnimation()
 
   useEffect(() => {

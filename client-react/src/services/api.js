@@ -256,7 +256,38 @@ export const archiveService = {
   deleteImage: (imgId) => apiFetch(`/images/${imgId}`, { method: 'DELETE' }),
 };
 
+// Site config is read by many components (Typography, Header, Home, About,
+// Archive...). Dedupe into ONE shared request per session + a localStorage
+// cache so the first paint can apply settings synchronously (no flash).
+const SITE_CONFIG_CACHE_KEY = 'siteConfigCache';
+let _siteConfigPromise = null;
+
 export const siteConfigService = {
-  get: () => apiFetch('/site-config'),
-  update: (configData) => apiFetch('/site-config', { method: 'PUT', body: JSON.stringify({ config_data: configData }) }),
+  get: () => {
+    if (!_siteConfigPromise) {
+      _siteConfigPromise = apiFetch('/site-config')
+        .then(data => {
+          const cd = data?.config?.config_data;
+          if (cd) siteConfigService.setCached(cd);
+          return data;
+        })
+        .catch(err => { _siteConfigPromise = null; throw err; }); // allow retry
+    }
+    return _siteConfigPromise;
+  },
+  getCached: () => {
+    try {
+      const s = localStorage.getItem(SITE_CONFIG_CACHE_KEY);
+      return s ? JSON.parse(s) : null;
+    } catch { return null; }
+  },
+  setCached: (configData) => {
+    try { localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(configData)); } catch { /* ignore quota */ }
+  },
+  update: (configData) => apiFetch('/site-config', { method: 'PUT', body: JSON.stringify({ config_data: configData }) })
+    .then(res => {
+      _siteConfigPromise = null;          // force a fresh fetch next time
+      siteConfigService.setCached(configData);
+      return res;
+    }),
 };

@@ -58,6 +58,16 @@ export function Home() {
   const viewerOpenRef = useRef(false)
   const selectedRef = useRef(selected)
   const lastSelectT = useRef(0)
+  const highlightedElRef = useRef(null)
+
+  // Highlight exactly ONE project copy (the one over the selector / hovered).
+  // Imperative class toggle so flings don't re-render the whole list.
+  const setHighlight = (el) => {
+    if (highlightedElRef.current === el) return
+    highlightedElRef.current?.classList.remove('is-selected')
+    el?.classList.add('is-selected')
+    highlightedElRef.current = el
+  }
 
   useEffect(() => { selectedRef.current = selected }, [selected])
 
@@ -137,14 +147,17 @@ export function Home() {
     const selectorCenter = mob ? (sr.left + sr.right) / 2 : (sr.top + sr.bottom) / 2
 
     let min = Infinity
-    let closest = null
+    let closestEl = null
     items.forEach(item => {
       const r = item.getBoundingClientRect()
       const c = mob ? (r.left + r.right) / 2 : (r.top + r.bottom) / 2
       const d = Math.abs(selectorCenter - c)
-      if (d < min) { min = d; closest = parseInt(item.dataset.key) }
+      if (d < min) { min = d; closestEl = item }
     })
-    if (closest && closest !== selectedRef.current) setSelected(closest)
+    if (!closestEl) return
+    setHighlight(closestEl)
+    const pid = parseInt(closestEl.dataset.key)
+    if (pid && pid !== selectedRef.current) setSelected(pid)
   }
 
   // ── projects carousel: vertical on desktop, horizontal on mobile ──
@@ -229,8 +242,7 @@ export function Home() {
                   key={`project-${index}`}
                   data-key={project.project_id}
                   data-text={project.project_name}
-                  data-selected={selected === project.project_id ? 'true' : undefined}
-                  onMouseEnter={() => { hoveringRef.current = true; setSelected(project.project_id) }}
+                  onMouseEnter={(e) => { hoveringRef.current = true; setHighlight(e.currentTarget); setSelected(project.project_id) }}
                   onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
                 >
                   <span className="project-item-label">{project.project_name}</span>
