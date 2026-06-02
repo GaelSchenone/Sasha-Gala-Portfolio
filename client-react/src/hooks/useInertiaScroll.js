@@ -65,13 +65,24 @@ export function useInertiaScroll(opts, deps = []) {
 
     let interacting = false
     let dragging = false
+    let touchMoved = false
     let lastPos = 0
     let lastMoveT = 0
     let resumeTimer = null
     let rafId = null
     let lastFrameT = null
 
+    const TOUCH_THRESHOLD = 5   // px in our axis before we hijack the gesture
+
     container.style.willChange = 'transform'
+
+    // Capture gestures along our axis; let the browser pan the perpendicular
+    // axis (page scroll). Without this, touches are either trapped
+    // (touch-action: none) or stolen entirely by native scroll. Set on the
+    // moving container — its children (the touch targets) inherit the
+    // restriction via touch-action intersection.
+    const prevTouchAction = container.style.touchAction
+    container.style.touchAction = axis === 'x' ? 'pan-y' : 'pan-x'
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
@@ -173,6 +184,7 @@ export function useInertiaScroll(opts, deps = []) {
     // ─── touch ──────────────────────────────────────────────
     const tpos = (e) => (axis === 'x' ? e.touches[0].clientX : e.touches[0].clientY)
     const onTouchStart = (e) => {
+      touchMoved = false
       dragging = true
       interacting = true
       lastPos = tpos(e)
@@ -181,10 +193,15 @@ export function useInertiaScroll(opts, deps = []) {
       clearResume()
     }
     const onTouchMove = (e) => {
-      e.preventDefault()
+      if (!dragging) return
       const now = performance.now()
       const dt = Math.max(1, now - lastMoveT)
       const d = tpos(e) - lastPos
+      // Until we've moved past the threshold along OUR axis, stay out of the way
+      // so a perpendicular swipe scrolls the page normally.
+      if (!touchMoved && Math.abs(d) < TOUCH_THRESHOLD) return
+      touchMoved = true
+      e.preventDefault()
       velocity.current = velocity.current * DRAG_SMOOTH + (d / dt * 16.67) * (1 - DRAG_SMOOTH)
       offset.current += d
       lastPos = tpos(e)
@@ -192,14 +209,17 @@ export function useInertiaScroll(opts, deps = []) {
     }
     const onTouchEnd = () => {
       dragging = false
-      if (Math.abs(velocity.current) <= MIN_V) { velocity.current = 0; scheduleResume() }
+      if (!touchMoved || Math.abs(velocity.current) <= MIN_V) {
+        velocity.current = 0
+        scheduleResume()
+      }
     }
 
     listener.addEventListener('wheel', onWheel, { passive: false })
     listener.addEventListener('mousedown', onMouseDown)
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
-    listener.addEventListener('touchstart', onTouchStart, { passive: false })
+    listener.addEventListener('touchstart', onTouchStart, { passive: true })
     listener.addEventListener('touchmove', onTouchMove, { passive: false })
     listener.addEventListener('touchend', onTouchEnd)
 
@@ -223,6 +243,7 @@ export function useInertiaScroll(opts, deps = []) {
       listener.removeEventListener('touchmove', onTouchMove)
       listener.removeEventListener('touchend', onTouchEnd)
       container.style.willChange = ''
+      container.style.touchAction = prevTouchAction
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, axis, ...deps])

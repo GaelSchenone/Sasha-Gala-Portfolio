@@ -268,8 +268,12 @@ footer .contact-links{
     justify-content: flex-start;
   }
 
+  /* The sticky header (below) provides its own padding and reserves space in
+     flow, so the wrapper must not add extra top spacing. */
   .workbanner {
     flex-direction: row;
+    padding: 0;
+    margin: 0;
   }
 
   .container {
@@ -296,7 +300,8 @@ footer .contact-links{
     overflow: hidden;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    touch-action: none;
+    /* touch-action is set by useInertiaScroll (pan-y) so horizontal swipes
+       are captured while vertical swipes still scroll the page */
   }
 
   .carrousel-y-wrapper::-webkit-scrollbar {
@@ -308,7 +313,6 @@ footer .contact-links{
     flex-direction: row;
     margin-left: 20px;
     padding: 10px 0;
-    touch-action: none;
   }
 
   .project-item {
