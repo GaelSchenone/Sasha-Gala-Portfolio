@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { projectService, archiveService, siteConfigService, validateImageFile, compressImage } from '../services/api';
+import { projectService, archiveService, siteConfigService, assetService, validateImageFile, compressImage, faviconUrl } from '../services/api';
 import { DesignTab } from './admin/DesignTab';
 import './Admin.css';
 
@@ -341,6 +341,8 @@ function AboutTab() {
   const [config, setConfig] = useState({ name: '', description: '', stack: '', links: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const faviconInputRef = useRef(null);
 
   useEffect(() => {
     siteConfigService.get()
@@ -350,6 +352,28 @@ function AboutTab() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const handleFaviconUpload = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const err = validateImageFile(file);
+    if (err) { alert(err); return; }
+    setUploadingIcon(true);
+    try {
+      // favicons are tiny — shrink hard before upload
+      const compressed = await compressImage(file, { maxDimension: 256, quality: 0.92, threshold: 0 });
+      const fd = new FormData();
+      fd.append('file', compressed);
+      const res = await assetService.upload(fd);
+      if (res?.url) setConfig(prev => ({ ...prev, favicon_url: res.url }));
+      else alert('No se pudo subir el icono');
+    } catch (err) {
+      alert(`Error al subir el icono: ${err.message || 'desconocido'}`);
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -381,6 +405,34 @@ function AboutTab() {
           <label>NOMBRE</label>
           <input value={config.name || ''} onChange={e => setConfig(prev => ({ ...prev, name: e.target.value }))} />
         </div>
+
+        <div className="form-group">
+          <label>ICONO DE LA PESTAÑA (FAVICON)</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: 48, height: 48, flexShrink: 0, borderRadius: 8,
+              border: '1px solid #e0e0e0', background: '#fafafa',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+            }}>
+              {config.favicon_url
+                ? <img src={faviconUrl(config.favicon_url, 96)} alt="favicon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontSize: 10, color: '#bbb' }}>sin icono</span>}
+            </div>
+            <input ref={faviconInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleFaviconUpload} />
+            <button type="button" className="btn-add-link" onClick={() => faviconInputRef.current?.click()} disabled={uploadingIcon}>
+              {uploadingIcon ? 'Subiendo...' : (config.favicon_url ? 'Cambiar icono' : 'Subir icono')}
+            </button>
+            {config.favicon_url && !uploadingIcon && (
+              <button type="button" className="btn-remove" onClick={() => setConfig(prev => ({ ...prev, favicon_url: '' }))}>
+                Quitar
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: '#888', margin: '6px 0 0' }}>
+            Imagen cuadrada (PNG/JPG/WebP). Se recorta a un cuadradito para la pestaña. Acordate de tocar <strong>Guardar</strong>.
+          </p>
+        </div>
+
         <div className="form-group">
           <label>DESCRIPCIÓN</label>
           <textarea rows="5" value={config.description || ''} onChange={e => setConfig(prev => ({ ...prev, description: e.target.value }))} />

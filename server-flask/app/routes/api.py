@@ -492,6 +492,37 @@ def upload_file():
     }), 201
 
 
+# ── SITE ASSETS (favicon, etc.) ───────────────────────────────
+
+@api_bp.route('/upload-asset', methods=['POST'])
+@token_required
+def upload_asset():
+    """Upload a standalone site asset (e.g. favicon) to Cloudinary and return
+    its URL. Unlike /upload it does NOT create an images row — the URL is meant
+    to be stored in site_config."""
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'error': 'No se recibió ningún archivo'}), 400
+
+    if not allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'desconocido'
+        return jsonify({'error': f'Tipo de archivo no soportado (.{ext}). Usá PNG, JPG o WebP.'}), 400
+
+    file_bytes = file.read()
+    if not file_bytes:
+        return jsonify({'error': 'El archivo está vacío'}), 400
+
+    base = safe_basename(file.filename)
+    public_id = f"assets/{base}_{uuid.uuid4().hex[:8]}"
+
+    try:
+        result = upload_to_cloudinary(file_bytes, public_id)
+        return jsonify({'url': result['secure_url']}), 201
+    except Exception:
+        current_app.logger.exception(f"Asset upload failed filename={file.filename!r}")
+        return jsonify({'error': 'Error al subir el archivo'}), 500
+
+
 # ── DELETE IMAGE ──────────────────────────────────────────────
 
 @api_bp.route('/images/<int:img_id>', methods=['DELETE'])

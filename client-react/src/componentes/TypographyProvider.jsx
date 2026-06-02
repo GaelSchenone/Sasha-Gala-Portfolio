@@ -1,9 +1,21 @@
 import { useEffect, useLayoutEffect } from 'react'
-import { siteConfigService } from '../services/api'
+import { siteConfigService, faviconUrl } from '../services/api'
 
 const applyConfig = (config) => {
   if (!config) return
   const root = document.documentElement
+
+  // Favicon (tab icon) set from the admin panel
+  if (config.favicon_url) {
+    let link = document.querySelector("link[rel='icon']")
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
+    }
+    link.type = 'image/png'
+    link.href = faviconUrl(config.favicon_url)
+  }
 
   if (config.font_family) root.style.setProperty('--font-family', config.font_family)
   if (config.base_font_size) root.style.setProperty('--base-font-size', config.base_font_size)

@@ -244,6 +244,20 @@ export const projectService = {
   uploadImage: (formData) => uploadWithAuth('/upload', formData),
 };
 
+// Build a small square PNG from a Cloudinary URL for use as a tab icon.
+export const faviconUrl = (url, size = 64) => {
+  if (!url) return url;
+  if (url.includes('/upload/')) {
+    return url.replace('/upload/', `/upload/c_fill,w_${size},h_${size},f_png/`);
+  }
+  return url;
+};
+
+export const assetService = {
+  // Uploads a standalone site asset (favicon, etc.) and returns { url }.
+  upload: (formData) => uploadWithAuth('/upload-asset', formData),
+};
+
 export const archiveService = {
   getAll: () => apiFetch('/archive').then(data => {
     if (data.images) {
