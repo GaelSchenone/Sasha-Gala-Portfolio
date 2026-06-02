@@ -50,12 +50,15 @@ body,
   overflow: hidden;
 }
 
-/* SIDEBAR */
+/* SIDEBAR — elastic width: grows to fit the longest name, clamped so it
+   never eats too much of the image area */
 .sidebar {
-  width: 27%;
+  width: fit-content;
+  min-width: 27%;
+  max-width: 48%;
   flex-shrink: 0;
   display: flex;
-  align-items: left;
+  align-items: flex-start;
   padding-left: 50px;
   height: 100%;
   flex-direction: column;
@@ -93,18 +96,45 @@ body,
 }
 
 
-.project-item{
+.project-item {
+    white-space: nowrap;
     font-size: var(--home-projects-font-size, 8vh);
-    font-weight: var(--home-projects-font-weight, 300);
     line-height: 1.15;
-    transition: font-weight 0.15s ease-in;
     margin: 0;
     padding: 0;
+    cursor: pointer;
 }
 
-.project-item:hover {
-  cursor: pointer;
+.project-item-label {
+    font-weight: var(--home-projects-font-weight, 300);
+    transition: font-weight 0.15s ease-in;
+}
 
+.project-item[data-selected="true"] .project-item-label {
+    font-weight: 500;
+}
+
+/* DESKTOP ONLY: the elastic sidebar needs a stable width. A hidden bold
+   "ghost" (same text, weight 500) reserves the selected-weight width so the
+   column never jitters as the highlighted name flips 300 <-> 500 while it
+   auto-scrolls past the selector. On mobile the list is horizontal, so the
+   trick is unnecessary and must NOT apply. */
+@media screen and (min-width: 1158px) {
+    .project-item {
+        display: grid;
+    }
+    .project-item > .project-item-label,
+    .project-item::after {
+        grid-area: 1 / 1;
+    }
+    .project-item::after {
+        content: attr(data-text);
+        font-weight: 500;
+        height: 0;
+        overflow: hidden;
+        visibility: hidden;
+        pointer-events: none;
+    }
 }
 
 /* CONTENIDO PRINCIPAL */
@@ -232,6 +262,12 @@ footer .contact-links{
 
 @media screen and (max-width: 1157px) {
 
+  /* Stack content from the top — the desktop vertical centering left a big
+     gap above the header on tall phones */
+  #root {
+    justify-content: flex-start;
+  }
+
   .workbanner {
     flex-direction: row;
   }
@@ -244,6 +280,8 @@ footer .contact-links{
 
   .sidebar {
     width: 100%;
+    min-width: 0;
+    max-width: none;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -296,7 +334,7 @@ footer .contact-links{
   }
 
   .displaywork {
-    height: 50vh;
+    height: 40vh;
     width: 100%;
     overflow: hidden;
     padding: 20px;

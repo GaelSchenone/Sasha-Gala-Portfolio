@@ -6,6 +6,11 @@ import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
 import { siteConfigService, BASE_URL } from '../services/api'
+import { useInertiaScroll } from '../hooks/useInertiaScroll'
+
+const MOBILE_BP = 1157
+const PROJECT_COPIES = 6  // enough repeats so the loop never shows a gap
+const IMAGE_COPIES = 3
 
 const normalizeImageRoute = (route) => {
   if (!route) return route
@@ -18,16 +23,9 @@ const normalizeImageRoute = (route) => {
 const normalizeImages = (data) => {
   if (!data) return data
   if (Array.isArray(data)) {
-    return data.map(item => {
-      if (item.img_route) {
-        return { ...item, img_route: normalizeImageRoute(item.img_route) }
-      }
-      return item
-    })
+    return data.map(item => (item.img_route ? { ...item, img_route: normalizeImageRoute(item.img_route) } : item))
   }
-  if (data.img_route) {
-    return { ...data, img_route: normalizeImageRoute(data.img_route) }
-  }
+  if (data.img_route) return { ...data, img_route: normalizeImageRoute(data.img_route) }
   return data
 }
 
@@ -37,26 +35,31 @@ export function Home() {
   const [selected, setSelected] = useState(null)
   const [viewerImage, setViewerImage] = useState(null)
   const [siteLinks, setSiteLinks] = useState([])
-  const [scrollSpeeds, setScrollSpeeds] = useState({
-    projects: 30,
-    images: 50,
-  })
-
-  const isHovering = useRef(false)
-  const isOverSidebar = useRef(false)
-  const isOverImages = useRef(false)
-  const viewerImageRef = useRef(null)
+  const [scrollSpeeds, setScrollSpeeds] = useState({ projects: 30, images: 50 })
 
   const navigate = useNavigate()
+  const screenWidth = useWindowWidth()
+  const isMobile = screenWidth <= MOBILE_BP
 
-  const openViewer = (src) => {
-    viewerImageRef.current = src
-    setViewerImage(src)
-  }
-  const closeViewer = () => {
-    viewerImageRef.current = null
-    setViewerImage(null)
-  }
+  // ── DOM refs ──
+  const projectsContainerRef = useRef(null)
+  const projectsWrapperRef = useRef(null)
+  const imagesContainerRef = useRef(null)
+  const displayRef = useRef(null)
+  const imagesControls = useRef(null)
+
+  // ── interaction state (read inside animation callbacks) ──
+  const isOverSidebar = useRef(false)
+  const isOverImages = useRef(false)
+  const hoveringRef = useRef(false)
+  const viewerOpenRef = useRef(false)
+  const selectedRef = useRef(selected)
+  const lastSelectT = useRef(0)
+
+  useEffect(() => { selectedRef.current = selected }, [selected])
+
+  const openViewer = (src) => { viewerOpenRef.current = true; setViewerImage(src) }
+  const closeViewer = () => { viewerOpenRef.current = false; setViewerImage(null) }
 
   const handleProjectClick = (id, name, type) => {
     if (type === 'quick') {
@@ -64,40 +67,17 @@ export function Home() {
       if (imgs.length > 0) openViewer(imgs[0].img_route)
       return
     }
-    navigate(`/Work/${encodeURIComponent(name)}`, { state: { id: id } })
+    navigate(`/Work/${encodeURIComponent(name)}`, { state: { id } })
   }
 
   const handleImageClick = (image) => {
     const project = projects.find(p => p.project_id == image.project_id)
     if (!project) return
-    if (project.project_type === 'quick') {
-      openViewer(image.img_route)
-    } else {
-      navigate(`/Work/${encodeURIComponent(project.project_name)}`, { state: { id: project.project_id } })
-    }
+    if (project.project_type === 'quick') openViewer(image.img_route)
+    else navigate(`/Work/${encodeURIComponent(project.project_name)}`, { state: { id: project.project_id } })
   }
 
-  const projectsTransform = useRef(0)
-  const imagesTransform = useRef(0)
-  const targetImagesTransform = useRef(0)
-
-  const userDraggingProjects = useRef(false)
-  const userDraggingImages = useRef(false)
-  const projectsDragTimeout = useRef(null)
-  const imagesDragTimeout = useRef(null)
-
-  const projectsContainerRef = useRef(null)
-  const imagesContainerRef = useRef(null)
-
-  const projectItemSizeRef = useRef(0)
-  const imageItemSizeRef = useRef(0)
-
-  const selectedRef = useRef(selected)
-  const lastSelectedProjectRef = useRef(null)
-  useEffect(() => { selectedRef.current = selected }, [selected])
-
-  const screenWidth = useWindowWidth()
-
+  // ── data ──
   useEffect(() => {
     fetch(`${BASE_URL}/projects?status=published`)
       .then(res => res.json())
@@ -113,9 +93,7 @@ export function Home() {
   useEffect(() => {
     fetch(`${BASE_URL}/projectimages`)
       .then(res => res.json())
-      .then(data => {
-        if (data.images) setProjectImages(normalizeImages(data.images))
-      })
+      .then(data => { if (data.images) setProjectImages(normalizeImages(data.images)) })
       .catch(err => console.error('Error fetching images:', err))
   }, [])
 
@@ -133,348 +111,95 @@ export function Home() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (projects.length === 0 || projectimages.length === 0) return
-
-    const projectsContainer = projectsContainerRef.current
-    const imagesContainer = imagesContainerRef.current
-    if (!projectsContainer || !imagesContainer) return
-
-    const isMobile = screenWidth <= 1157
-    let animationId = null
-    let lastTimestamp = null
-    let lastSelectionTimestamp = 0
-    const SELECTION_INTERVAL = 33
-
-    const measureSizes = () => {
-      const firstProject = projectsContainer.querySelector('.project-item')
-      if (firstProject) {
-        projectItemSizeRef.current = isMobile ? firstProject.offsetWidth : firstProject.offsetHeight
-      }
-      const firstImg = imagesContainer.querySelector('img')
-      if (firstImg) {
-        imageItemSizeRef.current = firstImg.offsetWidth
-      }
-    }
-    measureSizes()
-
-    const animate = (timestamp) => {
-      if (lastTimestamp === null) {
-        lastTimestamp = timestamp
-        animationId = requestAnimationFrame(animate)
-        return
-      }
-
-      const delta = Math.min(timestamp - lastTimestamp, 50)
-      lastTimestamp = timestamp
-
-      const pauseProjects = userDraggingProjects.current || isOverSidebar.current || viewerImageRef.current || isOverImages.current || userDraggingImages.current
-      const pauseImages = userDraggingImages.current || viewerImageRef.current
-
-      if (!pauseProjects) {
-        const speed = scrollSpeeds.projects
-        const movement = (speed * delta) / 1000
-        projectsTransform.current -= movement
-
-        const gap = isMobile ? 20 : 5
-        const marginLeft = isMobile ? 20 : 0
-        const slotSize = projectItemSizeRef.current + gap
-        const totalSize = slotSize * projects.length * 3 + marginLeft
-
-        if (totalSize > 0) {
-          if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
-          if (projectsTransform.current > 0) projectsTransform.current -= totalSize
-        }
-
-        if (isMobile) {
-          projectsContainer.style.transform = `translateX(${projectsTransform.current}px)`
-        } else {
-          projectsContainer.style.transform = `translateY(${projectsTransform.current}px)`
-        }
-      }
-
-      const currentSelected = selectedRef.current
-
-      // Resetear transform cuando cambia el proyecto seleccionado
-      if (currentSelected !== lastSelectedProjectRef.current) {
-        lastSelectedProjectRef.current = currentSelected
-        imagesTransform.current = 0
-        targetImagesTransform.current = 0
-      }
-
-      const filteredCount = projectimages.filter(img => img.project_id == currentSelected).length
-      const imageSlotSize = imageItemSizeRef.current + 10
-
-      if (!pauseImages) {
-        const speed = scrollSpeeds.images
-        const movement = (speed * delta) / 1000
-        targetImagesTransform.current -= movement
-        imagesTransform.current += (targetImagesTransform.current - imagesTransform.current) * 0.1
-      } else {
-        targetImagesTransform.current = imagesTransform.current
-      }
-
-      const totalImageSize = imageSlotSize * filteredCount * 3
-      if (totalImageSize > 0) {
-        if (imagesTransform.current <= -totalImageSize) {
-          imagesTransform.current += totalImageSize
-          targetImagesTransform.current += totalImageSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalImageSize
-          targetImagesTransform.current -= totalImageSize
-        }
-      }
-
-      if (isMobile) {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      }
-
-      if (!isHovering.current && timestamp - lastSelectionTimestamp >= SELECTION_INTERVAL) {
-        lastSelectionTimestamp = timestamp
-        const selector = document.querySelector('.selector')
-        const projectItems = projectsContainer.querySelectorAll('.project-item')
-
-        if (selector && projectItems.length > 0) {
-          const selectorRect = selector.getBoundingClientRect()
-          const selectorCenter = isMobile
-            ? (selectorRect.left + selectorRect.right) / 2
-            : (selectorRect.top + selectorRect.bottom) / 2
-
-          let minDistance = Infinity
-          let closestId = null
-
-          projectItems.forEach(item => {
-            const itemRect = item.getBoundingClientRect()
-            const itemCenter = isMobile
-              ? (itemRect.left + itemRect.right) / 2
-              : (itemRect.top + itemRect.bottom) / 2
-
-            const distance = Math.abs(selectorCenter - itemCenter)
-            if (distance < minDistance) {
-              minDistance = distance
-              closestId = parseInt(item.dataset.key)
-            }
-          })
-
-          if (closestId && closestId !== selectedRef.current) {
-            setSelected(closestId)
-          }
-        }
-      }
-
-      animationId = requestAnimationFrame(animate)
-    }
-
-    animationId = requestAnimationFrame(animate)
-
-    const handleProjectsWheel = (e) => {
-      e.preventDefault()
-      userDraggingProjects.current = true
-      const delta = isMobile ? e.deltaX || e.deltaY : e.deltaY
-      projectsTransform.current -= delta
-
-      const gap = isMobile ? 20 : 5
-      const marginLeft = isMobile ? 20 : 0
-      const slotSize = projectItemSizeRef.current + gap
-      const totalSize = slotSize * projects.length * 3 + marginLeft
-      if (totalSize > 0) {
-        if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
-        if (projectsTransform.current > 0) projectsTransform.current -= totalSize
-      }
-
-      if (isMobile) {
-        projectsContainer.style.transform = `translateX(${projectsTransform.current}px)`
-      } else {
-        projectsContainer.style.transform = `translateY(${projectsTransform.current}px)`
-      }
-
-      clearTimeout(projectsDragTimeout.current)
-      projectsDragTimeout.current = setTimeout(() => { userDraggingProjects.current = false }, 1500)
-    }
-
-    let lastProjectsTouch = 0
-    const handleProjectsTouchStart = (e) => {
-      const isMobileNow = window.innerWidth <= 1157
-      lastProjectsTouch = isMobileNow ? e.touches[0].clientX : e.touches[0].clientY
-      userDraggingProjects.current = true
-    }
-    const handleProjectsTouchMove = (e) => {
-      const isMobileNow = window.innerWidth <= 1157
-      e.preventDefault()
-      e.stopPropagation()
-      const currentPos = isMobileNow ? e.touches[0].clientX : e.touches[0].clientY
-      const delta = currentPos - lastProjectsTouch
-      lastProjectsTouch = currentPos
-      projectsTransform.current += delta
-
-      const gap = isMobileNow ? 20 : 5
-      const marginLeft = isMobileNow ? 20 : 0
-      const slotSize = projectItemSizeRef.current + gap
-      const totalSize = slotSize * projects.length * 3 + marginLeft
-      if (totalSize > 0) {
-        if (projectsTransform.current <= -totalSize) projectsTransform.current += totalSize
-        if (projectsTransform.current > 0) projectsTransform.current -= totalSize
-      }
-
-      if (isMobileNow) {
-        projectsContainer.style.transform = `translateX(${projectsTransform.current}px)`
-      } else {
-        projectsContainer.style.transform = `translateY(${projectsTransform.current}px)`
-      }
-    }
-    const handleProjectsTouchEnd = () => {
-      clearTimeout(projectsDragTimeout.current)
-      projectsDragTimeout.current = setTimeout(() => { userDraggingProjects.current = false }, 1500)
-    }
-
-    const handleImagesWheel = (e) => {
-      e.preventDefault()
-      userDraggingImages.current = true
-      const delta = isMobile ? (e.deltaX || e.deltaY) : (e.deltaX || e.deltaY)
-      targetImagesTransform.current -= delta
-      imagesTransform.current = targetImagesTransform.current
-
-      const filteredCount = projectimages.filter(img => img.project_id == selectedRef.current).length
-      const slotSize = imageItemSizeRef.current + 10
-      const totalSize = slotSize * filteredCount * 3
-      if (totalSize > 0) {
-        if (imagesTransform.current <= -totalSize) {
-          imagesTransform.current += totalSize
-          targetImagesTransform.current += totalSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalSize
-          targetImagesTransform.current -= totalSize
-        }
-      }
-
-      if (isMobile) {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      }
-
-      clearTimeout(imagesDragTimeout.current)
-      imagesDragTimeout.current = setTimeout(() => { userDraggingImages.current = false }, 1500)
-    }
-
-    let lastImagesTouch = 0
-    const handleImagesTouchStart = (e) => {
-      lastImagesTouch = e.touches[0].clientX
-      userDraggingImages.current = true
-    }
-    const handleImagesTouchMove = (e) => {
-      e.preventDefault()
-      const currentPos = e.touches[0].clientX
-      const delta = currentPos - lastImagesTouch
-      lastImagesTouch = currentPos
-      targetImagesTransform.current += delta
-      imagesTransform.current = targetImagesTransform.current
-
-      const filteredCount = projectimages.filter(img => img.project_id == selectedRef.current).length
-      const slotSize = imageItemSizeRef.current + 10
-      const totalSize = slotSize * filteredCount * 3
-      if (totalSize > 0) {
-        if (imagesTransform.current <= -totalSize) {
-          imagesTransform.current += totalSize
-          targetImagesTransform.current += totalSize
-        }
-        if (imagesTransform.current > 0) {
-          imagesTransform.current -= totalSize
-          targetImagesTransform.current -= totalSize
-        }
-      }
-
-      if (isMobile) {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      } else {
-        imagesContainer.style.transform = `translateX(${imagesTransform.current}px)`
-      }
-    }
-    const handleImagesTouchEnd = () => {
-      clearTimeout(imagesDragTimeout.current)
-      imagesDragTimeout.current = setTimeout(() => { userDraggingImages.current = false }, 1500)
-    }
-
-    const handleSidebarEnter = () => { isOverSidebar.current = true }
-    const handleSidebarLeave = () => { isOverSidebar.current = false }
-    const handleImagesEnter = () => { isOverImages.current = true }
-    const handleImagesLeave = () => { isOverImages.current = false }
-    const handleProjectMouseEnter = function() {
-      isHovering.current = true
-      const key = parseInt(this.dataset.key)
-      setSelected(key)
-    }
-    const handleProjectMouseLeave = () => { isHovering.current = false }
-
-    const wrapper = projectsContainer.closest('.carrousel-y-wrapper')
-    const display = imagesContainer.closest('.displaywork')
-
-    if (wrapper) {
-      wrapper.addEventListener('wheel', handleProjectsWheel, { passive: false })
-      wrapper.addEventListener('touchstart', handleProjectsTouchStart, { passive: false })
-      wrapper.addEventListener('touchmove', handleProjectsTouchMove, { passive: false })
-      wrapper.addEventListener('touchend', handleProjectsTouchEnd, { passive: false })
-      wrapper.addEventListener('mouseenter', handleSidebarEnter)
-      wrapper.addEventListener('mouseleave', handleSidebarLeave)
-    }
-
-    // Also add touch listeners directly to projectsContainer for better mobile support
-    projectsContainer.addEventListener('touchstart', handleProjectsTouchStart, { passive: false })
-    projectsContainer.addEventListener('touchmove', handleProjectsTouchMove, { passive: false })
-    projectsContainer.addEventListener('touchend', handleProjectsTouchEnd, { passive: false })
-
-    if (display) {
-      display.addEventListener('wheel', handleImagesWheel, { passive: false })
-      display.addEventListener('touchstart', handleImagesTouchStart, { passive: false })
-      display.addEventListener('touchmove', handleImagesTouchMove, { passive: false })
-      display.addEventListener('touchend', handleImagesTouchEnd, { passive: false })
-      if (screenWidth > 1157) {
-        display.addEventListener('mouseenter', handleImagesEnter)
-        display.addEventListener('mouseleave', handleImagesLeave)
-      }
-    }
-
-    const projectItems = projectsContainer.querySelectorAll('.project-item')
-    projectItems.forEach(item => {
-      item.addEventListener('mouseenter', handleProjectMouseEnter)
-    })
-    projectsContainer.addEventListener('mouseleave', handleProjectMouseLeave)
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId)
-      if (wrapper) {
-        wrapper.removeEventListener('wheel', handleProjectsWheel)
-        wrapper.removeEventListener('touchstart', handleProjectsTouchStart)
-        wrapper.removeEventListener('touchmove', handleProjectsTouchMove)
-        wrapper.removeEventListener('touchend', handleProjectsTouchEnd)
-        wrapper.removeEventListener('mouseenter', handleSidebarEnter)
-        wrapper.removeEventListener('mouseleave', handleSidebarLeave)
-      }
-      projectsContainer.removeEventListener('touchstart', handleProjectsTouchStart)
-      projectsContainer.removeEventListener('touchmove', handleProjectsTouchMove)
-      projectsContainer.removeEventListener('touchend', handleProjectsTouchEnd)
-      if (display) {
-        display.removeEventListener('wheel', handleImagesWheel)
-        display.removeEventListener('touchstart', handleImagesTouchStart)
-        display.removeEventListener('touchmove', handleImagesTouchMove)
-        display.removeEventListener('touchend', handleImagesTouchEnd)
-        display.removeEventListener('mouseenter', handleImagesEnter)
-        display.removeEventListener('mouseleave', handleImagesLeave)
-      }
-      projectItems.forEach(item => {
-        item.removeEventListener('mouseenter', handleProjectMouseEnter)
-      })
-      projectsContainer.removeEventListener('mouseleave', handleProjectMouseLeave)
-    }
-  }, [projects, projectimages, screenWidth])
-
   const filteredImages = useMemo(
     () => projectimages.filter(img => img.project_id == selected),
     [projectimages, selected]
+  )
+
+  // ── selector: pick the project whose center is nearest the .selector marker ──
+  const detectSelected = () => {
+    if (hoveringRef.current) return
+    const now = performance.now()
+    if (now - lastSelectT.current < 33) return // ~30fps throttle
+    lastSelectT.current = now
+
+    const selectorEl = document.querySelector('.selector')
+    const container = projectsContainerRef.current
+    if (!selectorEl || !container) return
+    const items = container.querySelectorAll('.project-item')
+    if (!items.length) return
+
+    const mob = window.innerWidth <= MOBILE_BP
+    const sr = selectorEl.getBoundingClientRect()
+    const selectorCenter = mob ? (sr.left + sr.right) / 2 : (sr.top + sr.bottom) / 2
+
+    let min = Infinity
+    let closest = null
+    items.forEach(item => {
+      const r = item.getBoundingClientRect()
+      const c = mob ? (r.left + r.right) / 2 : (r.top + r.bottom) / 2
+      const d = Math.abs(selectorCenter - c)
+      if (d < min) { min = d; closest = parseInt(item.dataset.key) }
+    })
+    if (closest && closest !== selectedRef.current) setSelected(closest)
+  }
+
+  // ── projects carousel: vertical on desktop, horizontal on mobile ──
+  useInertiaScroll(
+    {
+      containerRef: projectsContainerRef,
+      listenerRef: projectsWrapperRef,
+      axis: isMobile ? 'x' : 'y',
+      enabled: projects.length > 0,
+      getAutoSpeed: () => scrollSpeeds.projects,
+      getWrapSpan: () => {
+        const c = projectsContainerRef.current
+        const first = c?.querySelector('.project-item')
+        if (!first) return 0
+        const mob = window.innerWidth <= MOBILE_BP
+        const gap = mob ? 20 : 5
+        const size = (mob ? first.offsetWidth : first.offsetHeight) + gap
+        const marginLeft = mob ? 20 : 0
+        return size * projects.length * 3 + marginLeft
+      },
+      isPaused: () =>
+        isOverSidebar.current || isOverImages.current || viewerOpenRef.current || hoveringRef.current,
+      onAfterFrame: detectSelected,
+    },
+    [projects, screenWidth]
+  )
+
+  // ── images carousel: always horizontal ──
+  useInertiaScroll(
+    {
+      containerRef: imagesContainerRef,
+      listenerRef: displayRef,
+      axis: 'x',
+      enabled: projectimages.length > 0,
+      getAutoSpeed: () => scrollSpeeds.images,
+      getWrapSpan: () => {
+        const c = imagesContainerRef.current
+        const first = c?.querySelector('img')
+        if (!first) return 0
+        const size = first.offsetWidth + 10 // gap
+        return size * filteredImages.length * 3
+      },
+      isPaused: () => viewerOpenRef.current,
+      controlsRef: imagesControls,
+    },
+    [projectimages, screenWidth]
+  )
+
+  // Reset the images strip to the start whenever the selected project changes
+  useEffect(() => { imagesControls.current?.resetOffset(0) }, [selected])
+
+  const projectStrip = useMemo(
+    () => Array.from({ length: PROJECT_COPIES }, () => projects).flat(),
+    [projects]
+  )
+  const imageStrip = useMemo(
+    () => Array.from({ length: IMAGE_COPIES }, () => filteredImages).flat(),
+    [filteredImages]
   )
 
   return (
@@ -484,30 +209,30 @@ export function Home() {
       </div>
 
       <div className="container">
-        <div className="sidebar">
+        <div
+          className="sidebar"
+          onMouseEnter={() => { isOverSidebar.current = true }}
+          onMouseLeave={() => { isOverSidebar.current = false }}
+        >
           <div className="selector"></div>
-          <div className="carrousel-y-wrapper">
-            <div className="carrousel-y" ref={projectsContainerRef}>
-              {[...projects, ...projects, ...projects].map((project, index) => (
+          <div className="carrousel-y-wrapper" ref={projectsWrapperRef}>
+            <div
+              className="carrousel-y"
+              ref={projectsContainerRef}
+              style={{ userSelect: 'none' }}
+              onMouseLeave={() => { hoveringRef.current = false }}
+            >
+              {projectStrip.map((project, index) => (
                 <div
-                  className='project-item'
+                  className="project-item"
                   key={`project-${index}`}
                   data-key={project.project_id}
-                  style={{ fontWeight: selected === project.project_id ? 500 : 300 }}
+                  data-text={project.project_name}
+                  data-selected={selected === project.project_id ? 'true' : undefined}
+                  onMouseEnter={() => { hoveringRef.current = true; setSelected(project.project_id) }}
                   onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
                 >
-                  {project.project_name}
-                </div>
-              ))}
-              {[...projects, ...projects, ...projects].map((project, index) => (
-                <div
-                  className='project-item'
-                  key={`project-${index}`}
-                  data-key={project.project_id}
-                  style={{ fontWeight: selected === project.project_id ? 500 : 300 }}
-                  onClick={() => handleProjectClick(project.project_id, project.project_name, project.project_type)}
-                >
-                  {project.project_name}
+                  <span className="project-item-label">{project.project_name}</span>
                 </div>
               ))}
             </div>
@@ -515,9 +240,14 @@ export function Home() {
         </div>
 
         <div className="containerwork">
-          <div className="displaywork">
-            <div className="carrousel-work" ref={imagesContainerRef}>
-              {[...filteredImages, ...filteredImages, ...filteredImages].map((image, index) => (
+          <div
+            className="displaywork"
+            ref={displayRef}
+            onMouseEnter={() => { if (!isMobile) isOverImages.current = true }}
+            onMouseLeave={() => { isOverImages.current = false }}
+          >
+            <div className="carrousel-work" ref={imagesContainerRef} style={{ userSelect: 'none' }}>
+              {imageStrip.map((image, index) => (
                 <ClickableImage
                   key={`image-${index}`}
                   src={image.img_route}
@@ -530,13 +260,19 @@ export function Home() {
         </div>
       </div>
 
-      {viewerImage && (
-        <ImageViewer src={viewerImage} onClose={closeViewer} />
-      )}
+      {viewerImage && <ImageViewer src={viewerImage} onClose={closeViewer} />}
+
       <footer>
         <div className="contact-links">
           {siteLinks.map((link, i) => (
-            <a key={i} href={link.url.startsWith("http") || link.url.startsWith("mailto:") ? link.url : `https://${link.url}`} target={link.url.startsWith("mailto:") ? undefined : "_blank"} rel={link.url.startsWith("mailto:") ? undefined : "noopener noreferrer"}>{link.title}</a>
+            <a
+              key={i}
+              href={link.url.startsWith('http') || link.url.startsWith('mailto:') ? link.url : `https://${link.url}`}
+              target={link.url.startsWith('mailto:') ? undefined : '_blank'}
+              rel={link.url.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
+            >
+              {link.title}
+            </a>
           ))}
         </div>
       </footer>

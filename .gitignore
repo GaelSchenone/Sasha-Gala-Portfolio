@@ -25,3 +25,6 @@ backups/
 # IDE
 .vscode/
 .idea/
+
+# Local scratch / references (not for production)
+infinite_autoscroll_wheel_inertia.html
