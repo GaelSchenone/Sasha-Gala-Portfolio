@@ -55,8 +55,8 @@ export function View() {
 
   return (
     <>
+      <Header />
       <div className="view-body">
-        <Header />
 
         {/* Bio Section */}
         <div className="view-section">
@@ -95,7 +95,7 @@ export function View() {
   )
 }
 
-function LayoutGallery({ sections, layoutGap }) {
+function LayoutGallery({ sections }) {
   return (
     <div className="layout-gallery">
       {sections.map(section => {
