@@ -37,7 +37,7 @@ export function Header() {
       transition: { duration: 0.3, ease: "easeInOut" }
     },
     closed: {
-      y: "-50px",
+      y: "-40px",
       opacity: 0,
       zIndex: -100,
       transition: { duration: 0.3, ease: "easeInOut" }
@@ -65,20 +65,47 @@ export function Header() {
   }, [controls])
 
   useEffect(() => {
-    const handleScroll = () => {
-      const header = document.querySelector("header");
-      const navLinks = document.querySelector(".nav-links");
+    const header = document.querySelector("header");
+    if (!header) return;
 
-      if (header) {
-        header.style.padding = `${50 - Math.min(window.scrollY / 12, 25)}px 50px`;
-      }
-      if (navLinks) {
-        navLinks.style.top = `${50 - Math.min(window.scrollY / 12, 25) + 40}px`;
-      }
+    const MAX_SHRINK = 16; // subtle shrink
+
+    // Base vertical padding comes from CSS (50px on desktop, 9.5% on mobile).
+    // We ONLY touch top/bottom (longhand) so left/right keep their own logic.
+    let basePad = parseFloat(getComputedStyle(header).paddingTop) || 50;
+
+    // The scroll container can be <body> (index.css sets body overflow-x:hidden,
+    // which makes overflow-y compute to auto), so window.scrollY may stay 0.
+    // Read whichever element actually scrolled.
+    const getScroll = () => Math.max(
+      window.scrollY || 0,
+      document.documentElement.scrollTop || 0,
+      document.body.scrollTop || 0,
+    );
+
+    const apply = () => {
+      const shrink = Math.min(getScroll() / 12, MAX_SHRINK);
+      const v = `${basePad - shrink}px`;
+      header.style.paddingTop = v;
+      header.style.paddingBottom = v;
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onResize = () => {
+      // drop our inline overrides so we can re-read the CSS base, then re-apply
+      header.style.paddingTop = "";
+      header.style.paddingBottom = "";
+      basePad = parseFloat(getComputedStyle(header).paddingTop) || 50;
+      apply();
+    };
+
+    apply();
+    // capture:true so we still catch the event when <body> is the scroller
+    window.addEventListener("scroll", apply, { passive: true, capture: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", apply, { capture: true });
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   useEffect(() => {

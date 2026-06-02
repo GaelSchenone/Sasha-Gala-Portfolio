@@ -78,10 +78,10 @@
 }
 
 .project_topimage{
-  min-width: 100px;
-  max-width: 150px;
+  min-height: 100px;
+  max-height: 150px;
   position: absolute;
-  right: 50%;
+  right: 20%;
   bottom: 30%;
   opacity: 0;
   transition: opacity 100ms ease-in-out;

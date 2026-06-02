@@ -95,6 +95,8 @@ a.header1:hover {
   header {
     flex-direction: column;
     gap: 20px;
+    padding: 9.5%;
+
   }
 
   .logo {
@@ -105,14 +107,9 @@ a.header1:hover {
   /* The collapsed menu must NOT add height to the bar: take it out of flow as
      a dropdown that overlays the content below the header when opened. */
   .nav-links {
-    position: absolute;
-    top: 100%;
-    left: 0;
     width: 100%;
     display: flex;
     justify-content: space-between;
-    padding: 20px 50px;
-    background: #fff;
     box-sizing: border-box;
     opacity: 0;
   }

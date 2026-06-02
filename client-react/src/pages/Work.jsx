@@ -9,8 +9,10 @@ export function Work() {
   if (loading) return null
 
   return (
+    <>
+              <Header />
+
     <div className="work-body">
-      <Header />
       <div className="work-container">
         {projects.map((project) => (
           <WorkItem
@@ -25,5 +27,8 @@ export function Work() {
         ))}
       </div>
     </div>
+    
+    </>
+
   )
 }
