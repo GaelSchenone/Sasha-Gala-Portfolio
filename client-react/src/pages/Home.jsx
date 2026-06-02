@@ -219,7 +219,7 @@ export function Home() {
   )
 
   return (
-    <>
+    <div className="static-screen">
       <Header />
 
       <div className="container">
@@ -273,8 +273,6 @@ export function Home() {
         </div>
       </div>
 
-      {viewerImage && <ImageViewer src={viewerImage} onClose={closeViewer} />}
-
       <footer>
         <div className="contact-links">
           {siteLinks.map((link, i) => (
@@ -289,6 +287,8 @@ export function Home() {
           ))}
         </div>
       </footer>
-    </>
+
+      {viewerImage && <ImageViewer src={viewerImage} onClose={closeViewer} />}
+    </div>
   )
 }

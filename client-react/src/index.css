@@ -84,6 +84,29 @@ a {
   text-decoration: none;
 }
 
+/* ============================================
+   STATIC SCREEN — exactly one *visible* viewport, no page scroll.
+   100dvh tracks the real visible area on mobile (excludes the URL bar),
+   so the footer never gets pushed under the browser chrome.
+   ============================================ */
+.static-screen {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.static-screen > header,
+.static-screen > footer {
+  flex-shrink: 0;
+}
+
+.static-screen > .container {
+  flex: 1;
+  min-height: 0;
+}
+
 
 
 
