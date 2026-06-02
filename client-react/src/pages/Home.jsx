@@ -7,6 +7,7 @@ import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
 import { siteConfigService, BASE_URL } from '../services/api'
 import { useInertiaScroll } from '../hooks/useInertiaScroll'
+import { useLockPageScroll } from '../hooks/useLockPageScroll'
 
 const MOBILE_BP = 1157
 const PROJECT_COPIES = 6  // enough repeats so the loop never shows a gap
@@ -36,6 +37,8 @@ export function Home() {
   const [viewerImage, setViewerImage] = useState(null)
   const [siteLinks, setSiteLinks] = useState([])
   const [scrollSpeeds, setScrollSpeeds] = useState({ projects: 30, images: 50 })
+
+  useLockPageScroll()
 
   const navigate = useNavigate()
   const screenWidth = useWindowWidth()
@@ -204,9 +207,7 @@ export function Home() {
 
   return (
     <>
-      <div className="workbanner">
-        <Header />
-      </div>
+      <Header />
 
       <div className="container">
         <div

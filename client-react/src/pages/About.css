@@ -1,9 +1,24 @@
 /* ============================================
-   PAGE WRAPPER
+   PAGE WRAPPER — exactly one viewport, no scroll
    ============================================ */
+.about-screen {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .about-page {
+  flex: 1;
+  min-height: 0;
   max-width: 95%;
+  width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 80px;
 }
 
 /* ============================================
@@ -12,8 +27,6 @@
 .bio-section {
   display: flex;
   flex-direction: column;
-  
-  margin-top: 25%;
   justify-content: flex-end;
 }
 
@@ -66,8 +79,7 @@
    CONTACT SECTION
    ============================================ */
 .contact-section {
-  margin-top: 80px;
-  margin-bottom: 80px;
+  margin: 0;
 }
 
 .contact-links {
@@ -116,7 +128,7 @@ footer {
   }
 
   .bio-section {
-    margin-top: 150px;
+    margin-top: 0;
     min-height: auto;
   }
 

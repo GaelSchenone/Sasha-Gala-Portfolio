@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react'
 import './About.css'
 import { Header } from '../componentes/Header'
 import { siteConfigService } from '../services/api'
+import { useLockPageScroll } from '../hooks/useLockPageScroll'
 
 export function About() {
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  useLockPageScroll()
 
   useEffect(() => {
     siteConfigService.get()
@@ -18,13 +21,12 @@ export function About() {
 
   if (loading) return null
 
-  const name = config?.name || ''
   const description = config?.description || ''
   const stack = config?.stack || ''
   const links = config?.links || []
 
   return (
-    <>
+    <div className="about-screen">
       <Header />
 
       <div className="about-page">
@@ -67,8 +69,6 @@ export function About() {
         </section>
 
       </div>
-
-      <footer></footer>
-    </>
+    </div>
   )
 }

@@ -16,7 +16,7 @@ body,
 #root {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 /* HEADER */
@@ -42,9 +42,11 @@ body,
   font-weight: 400;
 }
 
-/* CONTENEDOR INFERIOR */
+/* CONTENEDOR INFERIOR — fills the space left below the sticky header so the
+   page is exactly one viewport tall (no scroll) */
 .container {
-  height: 77%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: row;
   overflow: hidden;

@@ -6,7 +6,10 @@ header {
   padding: 50px;
   width: 100%;
   max-width: 100vw;
-  position: fixed;
+  /* sticky (not fixed): stays in flow so it reserves its own space and never
+     overlaps the content/carousels below; sticks to the top on pages that
+     scroll (e.g. project view). */
+  position: sticky;
   top: 0;
   left: 0;
   margin: 0;
@@ -15,6 +18,7 @@ header {
   flex-direction: row;
   box-sizing: border-box;
   z-index: 1000;
+  background: #fff;
 }
 
 .logo {
@@ -125,13 +129,3 @@ a.header1:hover {
   }
 }
 
-/* Mobile/tablet: keep the header IN FLOW (sticky) so it reserves its own space
-   and never overlaps the horizontal project/image carousels below it. A fixed
-   transparent header sat on top of them and swallowed all touch gestures, so
-   the carousels couldn't be swiped. Desktop stays position:fixed (unchanged). */
-@media screen and (max-width: 1157px) {
-  header {
-    position: sticky;
-    background: #fff;
-  }
-}

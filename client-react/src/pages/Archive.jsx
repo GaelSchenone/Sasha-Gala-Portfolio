@@ -6,6 +6,7 @@ import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
 import { BASE_URL } from '../services/api'
+import { useLockPageScroll } from '../hooks/useLockPageScroll'
 
 export function Archive() {
   const [archiveImages, setArchiveImages] = useState([])
@@ -16,6 +17,8 @@ export function Archive() {
   const imagesDragTimeout = useRef(null)
   const imagesContainerRef = useRef(null)
   const screenWidth = useWindowWidth();
+
+  useLockPageScroll()
 
   const openViewer = (src) => setViewerImage(src)
   const closeViewer = () => setViewerImage(null)
@@ -155,9 +158,7 @@ export function Archive() {
 
   return (
     <>
-      <div className="workbanner">
-        <Header />
-      </div>
+      <Header />
 
       <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
         <div className="containerwork" style={{ width: '100%', height: '100%' }}>
