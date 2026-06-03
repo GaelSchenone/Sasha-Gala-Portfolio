@@ -5,6 +5,10 @@ const applyConfig = (config) => {
   if (!config) return
   const root = document.documentElement
 
+  // Tab title — applied from the cache synchronously (see below) so it does
+  // not flash the static default while the config request is in flight.
+  if (config.name) document.title = config.name
+
   // Favicon (tab icon) set from the admin panel
   if (config.favicon_url) {
     let link = document.querySelector("link[rel='icon']")
