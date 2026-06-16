@@ -242,6 +242,7 @@ export const projectService = {
   update: (id, data) => apiFetch(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteImage: (imgId) => apiFetch(`/images/${imgId}`, { method: 'DELETE' }),
   uploadImage: (formData) => uploadWithAuth('/upload', formData),
+  reorder: (items) => apiFetch('/projects/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
 };
 
 // Build a small square PNG from a Cloudinary URL for use as a tab icon.

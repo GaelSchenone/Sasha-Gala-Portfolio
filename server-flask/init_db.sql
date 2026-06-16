@@ -86,6 +86,7 @@ CREATE TABLE `proyectos` (
   `project_colaborators` varchar(100) DEFAULT NULL,
   `status` enum('draft','published','archived') DEFAULT 'published',
   `project_type` enum('full','quick') DEFAULT 'full',
+  `display_order` int DEFAULT '0',
   `layout_json` json DEFAULT NULL,
   PRIMARY KEY (`project_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

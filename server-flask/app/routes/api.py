@@ -109,7 +109,7 @@ def get_projects():
          ORDER BY display_order ASC LIMIT 1) as project_main_image
         FROM proyectos p
         {where_sql}
-        ORDER BY p.project_id ASC
+        ORDER BY p.display_order ASC, p.project_id ASC
     """
     projects = execute_query(query, tuple(params) if params else None)
     if projects is None:
@@ -298,14 +298,35 @@ def update_site_config():
 
 # ── CREATE ──────────────────────────────────────────────────────
 
+@api_bp.route('/projects/reorder', methods=['PUT'])
+@token_required
+def reorder_projects():
+    data = request.get_json()
+    items = data.get('items', [])
+    for item in items:
+        execute_query(
+            "UPDATE proyectos SET display_order = %s WHERE project_id = %s",
+            (item.get('display_order', 0), item.get('project_id'))
+        )
+    return jsonify({'message': 'Orden actualizado'})
+
+
 @api_bp.route('/add-project', methods=['POST'])
 @token_required
 def add_project():
     data = request.get_json()
+
+    # Auto-assign display_order at the end
+    max_order = execute_query(
+        "SELECT COALESCE(MAX(display_order), 0) as max_o FROM proyectos",
+        fetch_one=True
+    )
+    next_order = (max_order['max_o'] + 1) if max_order else 1
+
     query = """
         INSERT INTO proyectos
-        (project_name, project_description, project_stack, project_colaborators, status, project_type)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        (project_name, project_description, project_stack, project_colaborators, status, project_type, display_order)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
     params = (
         data.get('project_name'),
@@ -314,6 +335,7 @@ def add_project():
         data.get('project_colaborators', ''),
         data.get('status', 'draft'),
         data.get('project_type', 'full'),
+        next_order,
     )
     result = execute_query(query, params)
     if result is None:

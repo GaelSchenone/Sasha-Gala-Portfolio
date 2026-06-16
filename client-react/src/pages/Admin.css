@@ -487,6 +487,58 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+/* ── REORDER LIST (published projects drag & drop) ── */
+.admin-reorder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid #f5f5f5;
+}
+
+.admin-reorder-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border-bottom: 1px solid #f5f5f5;
+  background: white;
+  cursor: default;
+  position: relative;
+}
+
+.reorder-drag-handle {
+  cursor: grab;
+  color: #ccc;
+  font-size: 20px;
+  padding: 4px 8px;
+  user-select: none;
+  line-height: 1;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.reorder-drag-handle:hover {
+  color: #666;
+}
+
+.admin-reorder-item:active {
+  cursor: default;
+}
+
+.admin-reorder-item .td-name {
+  flex: 1;
+}
+
+.admin-reorder-item .td-type {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.admin-reorder-item .td-actions {
+  width: 50px;
+  flex-shrink: 0;
+}
+
 input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;

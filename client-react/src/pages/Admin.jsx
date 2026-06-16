@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Reorder } from 'framer-motion';
 import { projectService, archiveService, siteConfigService, assetService, validateImageFile, compressImage, faviconUrl } from '../services/api';
 import { DesignTab } from './admin/DesignTab';
 import './Admin.css';
@@ -128,6 +129,28 @@ export function Admin() {
 
 /* ── PROJECTS TAB ── */
 function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, showModal, setShowModal, newProject, setNewProject, handleAddProject, statusLabel, statusColor }) {
+  const [orderedPublished, setOrderedPublished] = useState([]);
+  const [reordering, setReordering] = useState(false);
+
+  useEffect(() => {
+    setOrderedPublished([...published].sort((a, b) => a.display_order - b.display_order));
+  }, [published]);
+
+  const handleReorder = async (reordered) => {
+    setOrderedPublished(reordered);
+    setReordering(true);
+    try {
+      const items = reordered.map((p, i) => ({ project_id: p.project_id, display_order: i }));
+      await projectService.reorder(items);
+    } catch (err) {
+      console.error('Reorder failed:', err);
+      // Revert on error
+      setOrderedPublished([...published].sort((a, b) => a.display_order - b.display_order));
+    } finally {
+      setReordering(false);
+    }
+  };
+
   const renderTable = (title, list) => (
     <div style={{ marginBottom: '30px' }}>
       {title && <h3 className="subsection-title">{title}</h3>}
@@ -181,7 +204,46 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
       </div>
 
       <section className="admin-section">
-        {renderTable('Publicados', published)}
+        {/* Published — reorderable via Framer Motion */}
+        <div style={{ marginBottom: '30px' }}>
+          <h3 className="subsection-title">Publicados {reordering && <span style={{ fontSize: 11, color: '#999', marginLeft: 8, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>guardando...</span>}</h3>
+          {orderedPublished.length === 0 ? (
+            <p className="empty-msg">No hay proyectos publicados</p>
+          ) : (
+            <Reorder.Group axis="y" values={orderedPublished} onReorder={handleReorder} className="admin-reorder-list">
+              {orderedPublished.map(project => {
+                const sc = statusColor(project.status);
+                const projectUrl = `/Work/${encodeURIComponent(project.project_name)}`;
+                return (
+                  <Reorder.Item key={project.project_id} value={project} className="admin-reorder-item">
+                    <span className="reorder-drag-handle" title="Arrastrar para reordenar">⠿</span>
+                    <span className="td-name">
+                      <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link">
+                        {project.project_name}
+                      </a>
+                    </span>
+                    <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
+                    <span><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
+                    <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el}>
+                      <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
+                      {openMenu === project.project_id && (
+                        <div className="ellipsis-menu">
+                          <button onClick={() => { navigate(`/admin/edit/${project.project_id}`); setOpenMenu(null); }}>Editar</button>
+                          <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="menu-link" onClick={() => setOpenMenu(null)}>Ver proyecto</a>
+                          <button onClick={() => { handleArchive(project); setOpenMenu(null); }}>
+                            {project.status === 'archived' ? 'Desarchivar' : 'Archivar'}
+                          </button>
+                          <button className="menu-danger" onClick={() => { handleDelete(project.project_id, project.project_name); setOpenMenu(null); }}>Borrar</button>
+                        </div>
+                      )}
+                    </span>
+                  </Reorder.Item>
+                );
+              })}
+            </Reorder.Group>
+          )}
+        </div>
+
         {renderTable('Borradores', drafts)}
         {renderTable('Archivados', archived)}
       </section>
