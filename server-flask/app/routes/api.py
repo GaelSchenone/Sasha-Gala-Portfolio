@@ -55,6 +55,22 @@ def extract_layout_urls(layout):
     return urls
 
 
+def get_ordered_layout_urls(layout):
+    """Extract image URLs from layout_json in display order (section→row→slot)."""
+    urls = []
+    if not layout or not isinstance(layout, dict):
+        return urls
+    for section in layout.get('sections', []):
+        for row in section.get('rows', []):
+            for slot in row:
+                if not slot:
+                    continue
+                src = slot if isinstance(slot, str) else slot.get('src')
+                if src and (src.startswith('http://') or src.startswith('https://')):
+                    urls.append(src)
+    return urls
+
+
 def upload_to_cloudinary(file_bytes, public_id):
     """Upload image bytes to Cloudinary with auto format/quality."""
     result = cloudinary.uploader.upload(
@@ -352,27 +368,6 @@ def update_project(project_id):
     new_layout = data.get('layout_json', {"sections": []})
     layout_str = json.dumps(new_layout)
 
-    # Compute removed URLs BEFORE the UPDATE so we know what to clean up after success.
-    # We DO NOT delete from Cloudinary/DB until the UPDATE succeeds — prevents broken images
-    # if the UPDATE fails halfway.
-    current = execute_query(
-        "SELECT layout_json FROM proyectos WHERE project_id = %s",
-        (project_id,), fetch_one=True
-    )
-    if current:
-        old_layout = current.get('layout_json', {})
-        if isinstance(old_layout, str):
-            try:
-                old_layout = json.loads(old_layout)
-            except json.JSONDecodeError:
-                old_layout = {"sections": []}
-        old_urls = extract_layout_urls(old_layout)
-    else:
-        old_urls = set()
-
-    new_urls = extract_layout_urls(new_layout)
-    removed_urls = old_urls - new_urls
-
     query = """
         UPDATE proyectos SET
             project_name = %s,
@@ -398,15 +393,24 @@ def update_project(project_id):
     if result is None:
         return jsonify({'error': 'DB Error'}), 500
 
-    # UPDATE succeeded — now safe to clean up removed images.
-    # If this fails partway, worst case is orphaned rows / Cloudinary storage,
-    # not broken layouts.
-    for url in removed_urls:
-        img = execute_query(
-            "SELECT img_id, cloudinary_public_id FROM images WHERE img_route = %s AND project_id = %s",
-            (url, project_id), fetch_one=True
-        )
-        if img:
+    # After successful save: sync images table with layout.
+    # 1. Assign display_order based on position in the layout (section→row→slot)
+    # 2. Delete any images no longer referenced (orphans from uploads, removed sections, etc.)
+    ordered_urls = get_ordered_layout_urls(new_layout)
+    layout_urls_set = set(ordered_urls)
+
+    for img in (execute_query(
+        "SELECT img_id, img_route, cloudinary_public_id FROM images WHERE project_id = %s",
+        (project_id,)
+    ) or []):
+        if img['img_route'] in layout_urls_set:
+            new_order = ordered_urls.index(img['img_route'])
+            execute_query(
+                "UPDATE images SET display_order = %s WHERE img_id = %s",
+                (new_order, img['img_id'])
+            )
+        else:
+            # Not referenced in layout — orphan, delete from DB and Cloudinary
             execute_query("DELETE FROM images WHERE img_id = %s", (img['img_id'],))
             pid = img.get('cloudinary_public_id')
             if pid:
