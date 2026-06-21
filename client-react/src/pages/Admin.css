@@ -446,9 +446,18 @@
 .project-name-link {
   color: inherit;
   text-decoration: none;
+  margin-left: 8px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.15s;
 }
 .project-name-link:hover {
-  text-decoration: underline;
+  background: #f0f0f0;
 }
 .ellipsis-menu .menu-link {
   display: block;
