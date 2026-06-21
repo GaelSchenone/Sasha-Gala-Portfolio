@@ -27,6 +27,8 @@ CREATE TABLE `images` (
   `img_route` varchar(255) DEFAULT NULL,
   `img_alt` varchar(200) DEFAULT NULL,
   `display_order` int DEFAULT '0',
+  `home_visible` tinyint(1) DEFAULT '1',
+  `home_order` int DEFAULT NULL,
   `project_id` int DEFAULT NULL,
   `status_id` int DEFAULT '2',
   PRIMARY KEY (`img_id`),
