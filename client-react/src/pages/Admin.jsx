@@ -171,48 +171,54 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
     return items;
   };
 
-  const renderTable = (title, list) => (
+  const renderList = (title, list) => (
     <div style={{ marginBottom: '30px' }}>
       {title && <h3 className="subsection-title">{title}</h3>}
       {list.length === 0 ? (
         <p className="empty-msg">No hay proyectos</p>
       ) : (
-        <table className="admin-table">
-          <thead>
-            <tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th></th></tr>
-          </thead>
-          <tbody>
-            {list.map(project => {
-              const sc = statusColor(project.status);
-              const projectUrl = `/Work/${encodeURIComponent(project.project_name)}`;
-              const menuItems = ellipsisItems(project);
-              return (
-                <tr key={project.project_id} onClick={() => navigate(`/admin/edit/${project.project_id}`)} style={{ cursor: 'pointer' }}>
-                  <td className="td-name">
-                    <span>{project.project_name}</span>
-                    <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
-                  </td>
-                  <td className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</td>
-                  <td><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></td>
-                  <td className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
-                    <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
-                    {openMenu === project.project_id && (
-                      <div className="ellipsis-menu">
-                        {menuItems.map((item, i) => (
-                          item.danger ? (
-                            <button key={i} className="menu-danger" onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
-                          ) : (
-                            <button key={i} style={item.style} onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
-                          )
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div>
+          <div className="admin-list-header">
+            <span className="reorder-drag-spacer" />
+            <span className="td-name">Nombre</span>
+            <span className="td-type">Tipo</span>
+            <span className="td-status">Estado</span>
+            <span className="td-actions" />
+          </div>
+          {list.map(project => {
+            const sc = statusColor(project.status);
+            const projectUrl = `/Work/${encodeURIComponent(project.project_name)}`;
+            const menuItems = ellipsisItems(project);
+            return (
+              <div key={project.project_id} className="admin-reorder-item"
+                onClick={() => navigate(`/admin/edit/${project.project_id}`)}
+                style={{ cursor: 'pointer' }}
+              >
+                <span className="reorder-drag-spacer" />
+                <span className="td-name">
+                  <span>{project.project_name}</span>
+                  <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
+                </span>
+                <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
+                <span><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
+                <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
+                  <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
+                  {openMenu === project.project_id && (
+                    <div className="ellipsis-menu">
+                      {menuItems.map((item, i) => (
+                        item.danger ? (
+                          <button key={i} className="menu-danger" onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
+                        ) : (
+                          <button key={i} style={item.style} onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -231,7 +237,15 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
           {orderedPublished.length === 0 ? (
             <p className="empty-msg">No hay proyectos publicados</p>
           ) : (
-            <Reorder.Group axis="y" values={orderedPublished} onReorder={handleReorder} className="admin-reorder-list">
+            <div>
+              <div className="admin-list-header">
+                <span className="reorder-drag-spacer" />
+                <span className="td-name">Nombre</span>
+                <span className="td-type">Tipo</span>
+                <span className="td-status">Estado</span>
+                <span className="td-actions" />
+              </div>
+              <Reorder.Group axis="y" values={orderedPublished} onReorder={handleReorder} className="admin-reorder-list">
               {orderedPublished.map(project => {
                 const sc = statusColor(project.status);
                 const projectUrl = `/Work/${encodeURIComponent(project.project_name)}`;
@@ -266,11 +280,12 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                 );
               })}
             </Reorder.Group>
+            </div>
           )}
         </div>
 
-        {renderTable('Borradores', drafts)}
-        {renderTable('Archivados', archived)}
+        {renderList('Borradores', drafts)}
+        {renderList('Archivados', archived)}
       </section>
     </>
   );
