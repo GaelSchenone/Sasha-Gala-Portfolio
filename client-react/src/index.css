@@ -111,11 +111,11 @@ a {
    CUSTOM CURSOR
    ============================================ */
 html {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Ccircle cx='5' cy='5' r='2.5' fill='black'/%3E%3C/svg%3E") 5 5, auto;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='3' fill='black'/%3E%3C/svg%3E") 10 10, auto;
 }
 
 a, button, input, select, textarea, [role="button"], .clickable, [onclick] {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14'%3E%3Ccircle cx='5' cy='5' r='2.5' fill='black'/%3E%3Cpolygon points='3.5,8 6.5,8 5,13' fill='black'/%3E%3C/svg%3E") 5 5, pointer;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='26'%3E%3Ccircle cx='10' cy='10' r='3' fill='black'/%3E%3Cpolygon points='7,14 13,14 10,23' fill='black'/%3E%3C/svg%3E") 10 10, pointer !important;
   outline: 1px solid transparent;
   outline-offset: 2px;
   transition: outline 0.2s ease;
