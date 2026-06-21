@@ -1,22 +1,18 @@
-.work-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.work-page > .work-body {
-  flex: 1;
-}
-
 .work-body {
-  padding: 0 8%;
+  padding: 0 8% 40px;
 }
 
 .work-page footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
   height: auto;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  background: #fff;
+  z-index: 100;
 }
 
 .work-page footer .contact-links {

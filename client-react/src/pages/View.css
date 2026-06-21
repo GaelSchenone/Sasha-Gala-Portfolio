@@ -1,21 +1,17 @@
 /* ============================================
    PAGE WRAPPER
    ============================================ */
-.view-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.view-page > .view-body {
-  flex: 1;
-}
-
 .view-page footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
   height: auto;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  background: #fff;
+  z-index: 100;
 }
 
 .view-page footer .contact-links {
@@ -32,7 +28,7 @@
    BIO SECTION
    ============================================ */
 .view-body{
-  padding: 0 8% 0 8%;
+  padding: 0 8% 40px;
   width: 100%;
 }
 
