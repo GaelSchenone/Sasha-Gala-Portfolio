@@ -149,6 +149,7 @@ export const compressImage = async (file, { maxDimension = 3000, quality = 0.9, 
   if (file.size < threshold) return file;
 
   const ext = (file.name?.split('.').pop() || '').toLowerCase();
+  const isPng = ext === 'png' || file.type === 'image/png';
   if (ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif') {
     return file;
   }
@@ -174,17 +175,19 @@ export const compressImage = async (file, { maxDimension = 3000, quality = 0.9, 
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
+      const mimeType = isPng ? 'image/png' : 'image/jpeg';
+      const newExt = isPng ? '.png' : '.jpg';
       canvas.toBlob(
         (blob) => {
           if (!blob || blob.size >= file.size) {
             resolve(file); // compression made it worse — keep original
             return;
           }
-          const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
-          resolve(new File([blob], newName, { type: 'image/jpeg', lastModified: file.lastModified }));
+          const newName = file.name.replace(/\.[^.]+$/, '') + newExt;
+          resolve(new File([blob], newName, { type: mimeType, lastModified: file.lastModified }));
         },
-        'image/jpeg',
-        quality
+        mimeType,
+        isPng ? 0.92 : quality
       );
     };
 
@@ -243,6 +246,7 @@ export const projectService = {
   deleteImage: (imgId) => apiFetch(`/images/${imgId}`, { method: 'DELETE' }),
   uploadImage: (formData) => uploadWithAuth('/upload', formData),
   reorder: (items) => apiFetch('/projects/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
+  updateHomeImages: (id, data) => apiFetch(`/projects/${id}/home-images`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // Build a small square PNG from a Cloudinary URL for use as a tab icon.

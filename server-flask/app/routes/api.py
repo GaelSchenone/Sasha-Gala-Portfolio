@@ -182,8 +182,8 @@ def get_project_images():
     images = execute_query(
         """SELECT i.* FROM images i
            JOIN proyectos p ON i.project_id = p.project_id
-           WHERE i.status_id = 1 AND p.status = 'published'
-           ORDER BY i.project_id, i.display_order ASC"""
+           WHERE i.status_id = 1 AND p.status = 'published' AND i.home_visible = 1
+           ORDER BY i.project_id, ISNULL(i.home_order), i.home_order ASC"""
     )
     return jsonify({'images': images}) if images is not None else (jsonify({'error': 'DB Error'}), 500)
 
@@ -424,6 +424,30 @@ def update_project(project_id):
         parse_layout_json(updated)
 
     return jsonify({'message': 'Proyecto actualizado', 'project': updated})
+
+
+@api_bp.route('/projects/<int:project_id>/home-images', methods=['PUT'])
+@token_required
+def update_home_images(project_id):
+    data = request.get_json()
+    images_data = data.get('images', [])
+    for img_data in images_data:
+        img_id = img_data.get('img_id')
+        home_visible = img_data.get('home_visible', True)
+        home_order = img_data.get('home_order')
+
+        if home_order is not None:
+            execute_query(
+                "UPDATE images SET home_visible = %s, home_order = %s WHERE img_id = %s AND project_id = %s",
+                (home_visible, home_order, img_id, project_id)
+            )
+        else:
+            execute_query(
+                "UPDATE images SET home_visible = %s WHERE img_id = %s AND project_id = %s",
+                (home_visible, img_id, project_id)
+            )
+
+    return jsonify({'message': 'Home images updated'})
 
 
 # ── DELETE ──────────────────────────────────────────────────────

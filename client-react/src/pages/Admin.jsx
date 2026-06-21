@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Reorder } from 'framer-motion';
 import { projectService, archiveService, siteConfigService, assetService, validateImageFile, compressImage, faviconUrl } from '../services/api';
 import { DesignTab } from './admin/DesignTab';
+import { ScrollImageSelector } from './admin/ScrollImageSelector';
 import './Admin.css';
 
 const TABS = ['Proyectos', 'Archivo', 'About', 'Diseño'];
@@ -19,6 +20,7 @@ export function Admin() {
   });
   const [openMenu, setOpenMenu] = useState(null);
   const menuRefs = useRef({});
+  const [scrollSelectorProject, setScrollSelectorProject] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -116,6 +118,7 @@ export function Admin() {
             showModal={showModal} setShowModal={setShowModal}
             newProject={newProject} setNewProject={setNewProject} handleAddProject={handleAddProject}
             statusLabel={statusLabel} statusColor={statusColor}
+            setScrollSelectorProject={setScrollSelectorProject}
           />
         )}
 
@@ -123,12 +126,19 @@ export function Admin() {
         {activeTab === 2 && <AboutTab />}
         {activeTab === 3 && <DesignTab />}
       </main>
+      {scrollSelectorProject && (
+        <ScrollImageSelector
+          projectId={scrollSelectorProject.id}
+          projectName={scrollSelectorProject.name}
+          onClose={() => setScrollSelectorProject(null)}
+        />
+      )}
     </div>
   );
 }
 
 /* ── PROJECTS TAB ── */
-function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, showModal, setShowModal, newProject, setNewProject, handleAddProject, statusLabel, statusColor }) {
+function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, showModal, setShowModal, newProject, setNewProject, handleAddProject, statusLabel, statusColor, setScrollSelectorProject }) {
   const [orderedPublished, setOrderedPublished] = useState([]);
   const [reordering, setReordering] = useState(false);
 
@@ -179,6 +189,7 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                     {openMenu === project.project_id && (
                       <div className="ellipsis-menu">
                         <button onClick={() => { navigate(`/admin/edit/${project.project_id}`); setOpenMenu(null); }}>Editar</button>
+                        <button onClick={() => { setScrollSelectorProject({ id: project.project_id, name: project.project_name }); setOpenMenu(null); }}>Elegir fotos del scroll</button>
                         <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="menu-link" onClick={() => setOpenMenu(null)}>Ver proyecto</a>
                         <button onClick={() => { handleArchive(project); setOpenMenu(null); }}>
                           {project.status === 'archived' ? 'Desarchivar' : 'Archivar'}
@@ -229,6 +240,7 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                       {openMenu === project.project_id && (
                         <div className="ellipsis-menu">
                           <button onClick={() => { navigate(`/admin/edit/${project.project_id}`); setOpenMenu(null); }}>Editar</button>
+                          <button onClick={() => { setScrollSelectorProject({ id: project.project_id, name: project.project_name }); setOpenMenu(null); }}>Elegir fotos del scroll</button>
                           <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="menu-link" onClick={() => setOpenMenu(null)}>Ver proyecto</a>
                           <button onClick={() => { handleArchive(project); setOpenMenu(null); }}>
                             {project.status === 'archived' ? 'Desarchivar' : 'Archivar'}
