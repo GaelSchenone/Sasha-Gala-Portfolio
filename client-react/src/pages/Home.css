@@ -186,10 +186,7 @@ body,
   flex-shrink: 0;
 }
 
-.carrousel-work img:hover,
-.carrousel-work .clickable-image:hover {
-  cursor: pointer;
-}
+
 
 
 

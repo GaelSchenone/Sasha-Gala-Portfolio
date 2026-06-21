@@ -19,7 +19,7 @@ export function ClickableImage({ src, alt, onClick, style, className = '' }) {
   <img
    src={src}
    alt={alt}
-   className={`clickable-image ${isPressed ? 'pressed' : ''} ${className}`}
+    className={`clickable-image clickable ${isPressed ? 'pressed' : ''} ${className}`}
    style={style}
    onMouseDown={handleMouseDown}
    onMouseUp={handleMouseUp}
