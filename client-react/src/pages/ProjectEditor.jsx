@@ -46,12 +46,13 @@ const STATUS_CONFIG = {
 export function ProjectEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const isNew = id === 'new';
   const [project, setProject] = useState({
     project_name: '', project_description: '', project_stack: '',
     project_colaborators: '', project_type: 'full', status: 'draft',
     layout_json: emptyLayout(),
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
@@ -101,7 +102,12 @@ export function ProjectEditor() {
     try {
       const data = { ...project };
       if (status) data.status = status;
-      await projectService.update(id, data);
+      if (isNew) {
+        const result = await projectService.add(data);
+        navigate(`/admin/edit/${result.project_id}`, { replace: true });
+      } else {
+        await projectService.update(id, data);
+      }
       navigate('/admin');
     } catch (error) {
       alert('Error al guardar');
@@ -123,6 +129,7 @@ export function ProjectEditor() {
   }, [hasUnsavedChanges]);
 
   useEffect(() => {
+    if (isNew) return;
     projectService.getById(id)
       .then(data => {
         const p = data.project;
@@ -145,7 +152,7 @@ export function ProjectEditor() {
         console.error('Error cargando proyecto:', err);
         setLoading(false);
       });
-  }, [id]);
+  }, [id, isNew]);
 
   const handleMetadataChange = (field, value) => {
     setProject(prev => ({ ...prev, [field]: value }));
@@ -313,7 +320,12 @@ export function ProjectEditor() {
   const saveAll = async () => {
     setSaving(true);
     try {
-      await projectService.update(id, project);
+      if (isNew) {
+        const result = await projectService.add(project);
+        navigate(`/admin/edit/${result.project_id}`, { replace: true });
+      } else {
+        await projectService.update(id, project);
+      }
       savedProjectRef.current = JSON.parse(JSON.stringify(project));
       setSavedAt(Date.now());
     } catch (error) {
@@ -411,21 +423,31 @@ export function ProjectEditor() {
             <label>COLABORADORES</label>
             <input value={project.project_colaborators || ''} onChange={e => handleMetadataChange('project_colaborators', e.target.value)} />
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>TIPO</label>
-              <select value={project.project_type} onChange={e => handleMetadataChange('project_type', e.target.value)}>
-                <option value="full">Completo</option>
-                <option value="quick">Rápido</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>ESTADO</label>
-              <select value={project.status} onChange={e => handleMetadataChange('status', e.target.value)}>
-                <option value="draft">Borrador</option>
-                <option value="published">Publicado</option>
-                <option value="archived">Archivado</option>
-              </select>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>TIPO</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => handleMetadataChange('project_type', 'full')}
+                style={{
+                  flex: 1, padding: '8px 0', fontSize: '12px', fontWeight: 700,
+                  border: project.project_type === 'full' ? '2px solid #1a73e8' : '2px solid #ddd',
+                  borderRadius: '6px', background: project.project_type === 'full' ? '#e8f0fe' : '#fff',
+                  color: project.project_type === 'full' ? '#1a73e8' : '#888',
+                  cursor: 'pointer',
+                }}
+              >Completo</button>
+              <button
+                type="button"
+                onClick={() => handleMetadataChange('project_type', 'quick')}
+                style={{
+                  flex: 1, padding: '8px 0', fontSize: '12px', fontWeight: 700,
+                  border: project.project_type === 'quick' ? '2px solid #1a73e8' : '2px solid #ddd',
+                  borderRadius: '6px', background: project.project_type === 'quick' ? '#e8f0fe' : '#fff',
+                  color: project.project_type === 'quick' ? '#1a73e8' : '#888',
+                  cursor: 'pointer',
+                }}
+              >Rápido</button>
             </div>
           </div>
 
@@ -512,15 +534,15 @@ export function ProjectEditor() {
             onReorder={updateSections}
             style={{ padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}
           >
-            {project.layout_json.sections.map(section => {
+            {project.layout_json.sections.map((section, idx) => {
               const gap = section.gap ?? 0;
               const height = section.height ?? 400;
               const autoHeight = section.autoHeight || false;
               return (
-                <Reorder.Item key={section.id} value={section} className="section-card">
+                <Reorder.Item key={section.id} value={section} className="section-card" id={`section-card-${section.id}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 700 }}>
-                      {section.columns} COL · {section.rows.length} FILA{section.rows.length > 1 ? 'S' : ''}
+                      {idx + 1} · {section.columns} COL · {section.rows.length} FILA{section.rows.length > 1 ? 'S' : ''}
                     </span>
                     <button onClick={() => removeSection(section.id)} className="btn-remove">ELIMINAR</button>
                   </div>
@@ -628,12 +650,13 @@ export function ProjectEditor() {
                 Añadir secciones desde el panel lateral
               </div>
             )}
-            {project.layout_json.sections.map(section => {
+            {project.layout_json.sections.map((section, idx) => {
               const gap = section.gap ?? 0;
               const height = section.height ?? 400;
               const autoHeight = section.autoHeight || false;
               return (
-                <div key={section.id}>
+                <div key={section.id} id={`preview-section-${section.id}`} style={{ position: 'relative', cursor: 'pointer' }} onClick={() => document.getElementById(`section-card-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+                  <span style={{ position: 'absolute', bottom: '8px', left: '8px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '11px', fontWeight: 700, width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, pointerEvents: 'none' }}>{idx + 1}</span>
                   {section.rows.map((row, rowIdx) => (
                     <div
                       key={rowIdx}

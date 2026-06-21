@@ -13,11 +13,6 @@ export function Admin() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [newProject, setNewProject] = useState({
-    project_name: '', project_description: '', project_stack: '',
-    project_colaborators: '', project_type: 'full', status: 'draft',
-  });
   const [openMenu, setOpenMenu] = useState(null);
   const menuRefs = useRef({});
   const [scrollSelectorProject, setScrollSelectorProject] = useState(null);
@@ -72,14 +67,13 @@ export function Admin() {
     } catch (error) { alert('Error al archivar'); }
   };
 
-  const handleAddProject = async (e) => {
-    e.preventDefault();
+  const handleToggleStatus = async (project, newStatus) => {
     try {
-      await projectService.add({ ...newProject, status: 'draft' });
-      setShowModal(false);
-      setNewProject({ project_name: '', project_description: '', project_stack: '', project_colaborators: '', project_type: 'full', status: 'draft' });
-      fetchProjects();
-    } catch (error) { alert('Error al crear'); }
+      await projectService.update(project.project_id, { ...project, status: newStatus });
+      setProjects(prev => prev.map(p =>
+        p.project_id === project.project_id ? { ...p, status: newStatus } : p
+      ));
+    } catch (error) { alert('Error al cambiar estado'); }
   };
 
   const statusLabel = (s) => s === 'published' ? 'Publicado' : s === 'archived' ? 'Archivado' : 'Borrador';
@@ -115,8 +109,7 @@ export function Admin() {
             published={published} drafts={drafts} archived={archived}
             openMenu={openMenu} setOpenMenu={setOpenMenu} menuRefs={menuRefs}
             navigate={navigate} handleDelete={handleDelete} handleArchive={handleArchiveProject}
-            showModal={showModal} setShowModal={setShowModal}
-            newProject={newProject} setNewProject={setNewProject} handleAddProject={handleAddProject}
+            handleToggleStatus={handleToggleStatus}
             statusLabel={statusLabel} statusColor={statusColor}
             setScrollSelectorProject={setScrollSelectorProject}
           />
@@ -138,7 +131,7 @@ export function Admin() {
 }
 
 /* ── PROJECTS TAB ── */
-function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, showModal, setShowModal, newProject, setNewProject, handleAddProject, statusLabel, statusColor, setScrollSelectorProject }) {
+function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, handleToggleStatus, statusLabel, statusColor, setScrollSelectorProject }) {
   const [orderedPublished, setOrderedPublished] = useState([]);
   const [reordering, setReordering] = useState(false);
 
@@ -154,11 +147,28 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
       await projectService.reorder(items);
     } catch (err) {
       console.error('Reorder failed:', err);
-      // Revert on error
       setOrderedPublished([...published].sort((a, b) => a.display_order - b.display_order));
     } finally {
       setReordering(false);
     }
+  };
+
+  const ellipsisItems = (project) => {
+    const items = [];
+    items.push({ label: 'Editar', onClick: () => navigate(`/admin/edit/${project.project_id}`) });
+    items.push({ label: 'Elegir fotos del scroll', onClick: () => setScrollSelectorProject({ id: project.project_id, name: project.project_name }) });
+    if (project.status === 'draft') {
+      items.push({ label: 'Publicar', onClick: () => handleToggleStatus(project, 'published'), style: { color: '#1e8e3e' } });
+    }
+    if (project.status === 'published') {
+      items.push({ label: 'Despublicar', onClick: () => handleToggleStatus(project, 'draft'), style: { color: '#e65100' } });
+    }
+    items.push({
+      label: project.status === 'archived' ? 'Desarchivar' : 'Archivar',
+      onClick: () => handleArchive(project),
+    });
+    items.push({ label: 'Borrar', onClick: () => handleDelete(project.project_id, project.project_name), danger: true });
+    return items;
   };
 
   const renderTable = (title, list) => (
@@ -175,26 +185,26 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
             {list.map(project => {
               const sc = statusColor(project.status);
               const projectUrl = `/Work/${encodeURIComponent(project.project_name)}`;
+              const menuItems = ellipsisItems(project);
               return (
-                <tr key={project.project_id}>
+                <tr key={project.project_id} onClick={() => navigate(`/admin/edit/${project.project_id}`)} style={{ cursor: 'pointer' }}>
                   <td className="td-name">
-                    <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link">
-                      {project.project_name}
-                    </a>
+                    <span>{project.project_name}</span>
+                    <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
                   </td>
                   <td className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</td>
                   <td><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></td>
-                  <td className="td-actions" ref={el => menuRefs.current[project.project_id] = el}>
+                  <td className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
                     <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
                     {openMenu === project.project_id && (
                       <div className="ellipsis-menu">
-                        <button onClick={() => { navigate(`/admin/edit/${project.project_id}`); setOpenMenu(null); }}>Editar</button>
-                        <button onClick={() => { setScrollSelectorProject({ id: project.project_id, name: project.project_name }); setOpenMenu(null); }}>Elegir fotos del scroll</button>
-                        <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="menu-link" onClick={() => setOpenMenu(null)}>Ver proyecto</a>
-                        <button onClick={() => { handleArchive(project); setOpenMenu(null); }}>
-                          {project.status === 'archived' ? 'Desarchivar' : 'Archivar'}
-                        </button>
-                        <button className="menu-danger" onClick={() => { handleDelete(project.project_id, project.project_name); setOpenMenu(null); }}>Borrar</button>
+                        {menuItems.map((item, i) => (
+                          item.danger ? (
+                            <button key={i} className="menu-danger" onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
+                          ) : (
+                            <button key={i} style={item.style} onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
+                          )
+                        ))}
                       </div>
                     )}
                   </td>
@@ -211,7 +221,7 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
     <>
       <div className="admin-section-header">
         <h2 className="admin-section-title">Proyectos</h2>
-        <button onClick={() => setShowModal(true)} className="btn-add-project">+ Nuevo Proyecto</button>
+        <button onClick={() => navigate('/admin/edit/new')} className="btn-add-project">+ Nuevo Proyecto</button>
       </div>
 
       <section className="admin-section">
@@ -225,27 +235,30 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
               {orderedPublished.map(project => {
                 const sc = statusColor(project.status);
                 const projectUrl = `/Work/${encodeURIComponent(project.project_name)}`;
+                const menuItems = ellipsisItems(project);
                 return (
-                  <Reorder.Item key={project.project_id} value={project} className="admin-reorder-item">
-                    <span className="reorder-drag-handle" title="Arrastrar para reordenar">⠿</span>
+                  <Reorder.Item key={project.project_id} value={project} className="admin-reorder-item"
+                    onClick={() => navigate(`/admin/edit/${project.project_id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="reorder-drag-handle" title="Arrastrar para reordenar" onClick={e => e.stopPropagation()}>⠿</span>
                     <span className="td-name">
-                      <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link">
-                        {project.project_name}
-                      </a>
+                      <span>{project.project_name}</span>
+                      <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
                     </span>
                     <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
                     <span><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
-                    <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el}>
+                    <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
                       <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
                       {openMenu === project.project_id && (
                         <div className="ellipsis-menu">
-                          <button onClick={() => { navigate(`/admin/edit/${project.project_id}`); setOpenMenu(null); }}>Editar</button>
-                          <button onClick={() => { setScrollSelectorProject({ id: project.project_id, name: project.project_name }); setOpenMenu(null); }}>Elegir fotos del scroll</button>
-                          <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="menu-link" onClick={() => setOpenMenu(null)}>Ver proyecto</a>
-                          <button onClick={() => { handleArchive(project); setOpenMenu(null); }}>
-                            {project.status === 'archived' ? 'Desarchivar' : 'Archivar'}
-                          </button>
-                          <button className="menu-danger" onClick={() => { handleDelete(project.project_id, project.project_name); setOpenMenu(null); }}>Borrar</button>
+                          {menuItems.map((item, i) => (
+                            item.danger ? (
+                              <button key={i} className="menu-danger" onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
+                            ) : (
+                              <button key={i} style={item.style} onClick={() => { item.onClick(); setOpenMenu(null); }}>{item.label}</button>
+                            )
+                          ))}
                         </div>
                       )}
                     </span>
@@ -259,23 +272,6 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
         {renderTable('Borradores', drafts)}
         {renderTable('Archivados', archived)}
       </section>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <form className="modal-form" onSubmit={handleAddProject} onClick={e => e.stopPropagation()}>
-            <h2 className="modal-title">Nuevo Proyecto</h2>
-            <div className="form-group"><label>NOMBRE</label><input placeholder="Nombre del Proyecto" required value={newProject.project_name} onChange={e => setNewProject({ ...newProject, project_name: e.target.value })} /></div>
-            <div className="form-group"><label>TIPO</label><select value={newProject.project_type} onChange={e => setNewProject({ ...newProject, project_type: e.target.value })}><option value="full">Proyecto Completo</option><option value="quick">Proyecto Rápido</option></select></div>
-            <div className="form-group"><label>DESCRIPCIÓN</label><textarea placeholder="Descripción" rows="3" value={newProject.project_description} onChange={e => setNewProject({ ...newProject, project_description: e.target.value })} /></div>
-            <div className="form-group"><label>STACK</label><input placeholder="Photoshop, Illustrator..." value={newProject.project_stack} onChange={e => setNewProject({ ...newProject, project_stack: e.target.value })} /></div>
-            <div className="form-group"><label>COLABORADORES</label><input placeholder="Separados por coma" value={newProject.project_colaborators} onChange={e => setNewProject({ ...newProject, project_colaborators: e.target.value })} /></div>
-            <div className="modal-actions">
-              <button type="submit" className="btn-modal-primary">Crear como Borrador</button>
-              <button type="button" onClick={() => setShowModal(false)} className="btn-modal-cancel">Cancelar</button>
-            </div>
-          </form>
-        </div>
-      )}
     </>
   );
 }
