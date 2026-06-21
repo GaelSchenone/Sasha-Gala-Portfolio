@@ -12,6 +12,7 @@
   justify-content: flex-start;
   background: #fff;
   z-index: 100;
+  padding: 20px 0;
 }
 
 .view-page footer .contact-links {
@@ -21,14 +22,13 @@
   padding-left: 50px;
   font-size: var(--footer-font-size, large);
   width: 20%;
-  height: 1vh;
 }
 
 /* ============================================
    BIO SECTION
    ============================================ */
 .view-body{
-  padding: 0 8% 40px;
+  padding: 0 8% 80px;
   width: 100%;
 }
 

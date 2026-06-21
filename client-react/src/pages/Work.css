@@ -1,5 +1,5 @@
 .work-body {
-  padding: 0 8% 40px;
+  padding: 0 8% 80px;
 }
 
 .work-page footer {
@@ -13,6 +13,7 @@
   justify-content: flex-start;
   background: #fff;
   z-index: 100;
+  padding: 20px 0;
 }
 
 .work-page footer .contact-links {
@@ -22,7 +23,6 @@
   padding-left: 50px;
   font-size: var(--footer-font-size, large);
   width: 20%;
-  height: 1vh;
 }
 
 .work-container {
