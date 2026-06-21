@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import './View.css'
 import { Header } from '../componentes/Header'
-import { projectService } from '../services/api'
+import { projectService, siteConfigService } from '../services/api'
 
 const formatCollaborators = (str) => {
   if (!str) return null
@@ -17,6 +17,7 @@ export function View() {
   const navigate = useNavigate()
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [siteLinks, setSiteLinks] = useState([])
 
   const projectIdFromState = location.state?.id
 
@@ -38,6 +39,12 @@ export function View() {
     }
 
     fetchProject()
+
+    siteConfigService.get()
+      .then(data => {
+        if (data.config?.config_data?.links) setSiteLinks(data.config.config_data.links)
+      })
+      .catch(() => {})
   }, [projectIdFromState, projectName])
 
   if (loading) return <div className="loading" style={{ padding: '50px' }}>Loading project...</div>
@@ -54,7 +61,7 @@ export function View() {
   const fallbackImages = project.images || []
 
   return (
-    <>
+    <div className="view-page">
       <Header />
       <div className="view-body">
 
@@ -91,7 +98,22 @@ export function View() {
           <MasonryGallery images={fallbackImages} projectName={project.project_name} />
         )}
       </div>
-    </>
+
+      <footer>
+        <div className="contact-links">
+          {siteLinks.map((link, i) => (
+            <a
+              key={i}
+              href={link.url.startsWith('http') || link.url.startsWith('mailto:') ? link.url : `https://${link.url}`}
+              target={link.url.startsWith('mailto:') ? undefined : '_blank'}
+              rel={link.url.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
+            >
+              {link.title}
+            </a>
+          ))}
+        </div>
+      </footer>
+    </div>
   )
 }
 

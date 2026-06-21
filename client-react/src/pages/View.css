@@ -1,9 +1,38 @@
 /* ============================================
+   PAGE WRAPPER
+   ============================================ */
+.view-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.view-page > .view-body {
+  flex: 1;
+}
+
+.view-page footer {
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.view-page footer .contact-links {
+  all: unset;
+  display: flex;
+  justify-content: space-between;
+  padding-left: 50px;
+  font-size: var(--footer-font-size, large);
+  width: 20%;
+  height: 1vh;
+}
+
+/* ============================================
    BIO SECTION
    ============================================ */
 .view-body{
   padding: 0 8% 0 8%;
-  min-height: 100vh;
   width: 100%;
 }
 
@@ -185,5 +214,11 @@
     top: 30%;
     transform: translate(-50%, -50%);
     max-width: 200px;
+  }
+
+  .view-page footer .contact-links {
+    padding-left: 20px;
+    font-size: 14px;
+    width: 78%;
   }
 }
