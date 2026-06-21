@@ -488,7 +488,7 @@ export function ProjectEditor() {
               </div>
               <div className="form-group">
                 <label>BACKGROUND-POSITION</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', maxWidth: '132px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px', maxWidth: '66px' }}>
                   {[
                     ['top left', 'top', 'top right'],
                     ['left', 'center', 'right'],
