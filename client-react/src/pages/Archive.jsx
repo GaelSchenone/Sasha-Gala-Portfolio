@@ -5,7 +5,7 @@ import useWindowWidth from '../componentes/useWindowWidth'
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
-import { BASE_URL } from '../services/api'
+import { siteConfigService, BASE_URL } from '../services/api'
 import { useLockPageScroll } from '../hooks/useLockPageScroll'
 import { useInertiaScroll } from '../hooks/useInertiaScroll'
 
@@ -14,6 +14,7 @@ const COPIES = 3
 export function Archive() {
   const [archiveImages, setArchiveImages] = useState([])
   const [viewerImage, setViewerImage] = useState(null)
+  const [siteLinks, setSiteLinks] = useState([])
   const imagesContainerRef = useRef(null)
   const displayRef = useRef(null)
   const viewerOpenRef = useRef(false)
@@ -29,6 +30,12 @@ export function Archive() {
       .then(res => res.json())
       .then(data => { if (data.images) setArchiveImages(data.images) })
       .catch(err => console.error('Error fetching archive:', err))
+
+    siteConfigService.get()
+      .then(data => {
+        if (data.config?.config_data?.links) setSiteLinks(data.config.config_data.links)
+      })
+      .catch(() => {})
   }, [])
 
   // Same inertia engine as Home (wheel/drag/touch + glide).
@@ -75,6 +82,21 @@ export function Archive() {
       </div>
 
       {viewerImage && <ImageViewer src={viewerImage} onClose={closeViewer} />}
+
+      <footer>
+        <div className="contact-links">
+          {siteLinks.map((link, i) => (
+            <a
+              key={i}
+              href={link.url.startsWith('http') || link.url.startsWith('mailto:') ? link.url : `https://${link.url}`}
+              target={link.url.startsWith('mailto:') ? undefined : '_blank'}
+              rel={link.url.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
+            >
+              {link.title}
+            </a>
+          ))}
+        </div>
+      </footer>
     </div>
   )
 }

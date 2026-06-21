@@ -19,6 +19,23 @@
   align-items: center;
 }
 
+footer {
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+footer .contact-links {
+  all: unset;
+  display: flex;
+  justify-content: space-between;
+  padding-left: 50px;
+  font-size: var(--footer-font-size, large);
+  width: 20%;
+  height: 1vh;
+}
+
 @media screen and (max-width: 1157px) {
   .carrousel {
     flex-direction: row;
@@ -27,4 +44,9 @@
     height: 60vh;
   }
 
+  footer .contact-links {
+    padding-left: 20px;
+    font-size: 14px;
+    width: 78%;
+  }
 }
