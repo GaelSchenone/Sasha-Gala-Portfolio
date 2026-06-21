@@ -488,15 +488,22 @@ export function ProjectEditor() {
               </div>
               <div className="form-group">
                 <label>BACKGROUND-POSITION</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {POSITION_OPTIONS.map(p => (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', maxWidth: '132px' }}>
+                  {[
+                    ['top left', 'top', 'top right'],
+                    ['left', 'center', 'right'],
+                    ['bottom left', 'bottom', 'bottom right'],
+                  ].flat().map(p => (
                     <button
                       key={p}
-                      className={`fit-btn ${selectedSlot.position === p ? 'fit-btn-active' : ''}`}
                       onClick={() => updateSlotProperty(selectedImage.sectionId, selectedImage.rowIdx, selectedImage.colIdx, 'position', p)}
-                    >
-                      {p}
-                    </button>
+                      style={{
+                        width: '100%', aspectRatio: '1', borderRadius: '6px', border: '2px solid', cursor: 'pointer', padding: 0,
+                        background: selectedSlot.position === p ? '#1a73e8' : '#e0e0e0',
+                        borderColor: selectedSlot.position === p ? '#1a73e8' : '#d0d0d0',
+                        transition: 'all 0.15s',
+                      }}
+                    />
                   ))}
                 </div>
               </div>
