@@ -15,6 +15,13 @@ const DEFAULT_CONFIG = {
   footer_font_size: '16px',
   scroll_projects_speed: 30,
   scroll_images_speed: 50,
+
+  // Cursor
+  cursor_enabled: true,
+  cursor_radius: 3,
+  cursor_color: '#000000',
+  cursor_hover_stroke_width: 2.5,
+  cursor_hover_stroke_color: '#000000',
 };
 
 const FONT_OPTIONS = [
@@ -278,6 +285,66 @@ export function DesignTab() {
         </div>
       </div>
 
+      {/* ── CURSOR ── */}
+      <div className="design-card">
+        <div className="design-card-head">
+          <h3 className="design-card-title">Cursor</h3>
+          <p className="design-card-desc">Personalizá el círculo que sigue al mouse.</p>
+        </div>
+        <div className="design-card-body">
+          <div className="design-row">
+            <label>Cursor personalizado</label>
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={config.cursor_enabled}
+                onChange={e => update('cursor_enabled', e.target.checked)}
+              />
+              <span>{config.cursor_enabled ? 'Activado' : 'Desactivado'}</span>
+            </label>
+          </div>
+          {config.cursor_enabled && (
+            <>
+              <SliderRow
+                label="Radio del círculo"
+                value={config.cursor_radius}
+                min={1} max={6} step={0.5} unit="px"
+                onChange={v => update('cursor_radius', v)}
+              />
+              <ColorRow
+                label="Color (standby)"
+                value={config.cursor_color}
+                onChange={v => update('cursor_color', v)}
+              />
+              <SliderRow
+                label="Grosor del borde (hover)"
+                value={config.cursor_hover_stroke_width}
+                min={0.5} max={5} step={0.5} unit="px"
+                onChange={v => update('cursor_hover_stroke_width', v)}
+              />
+              <ColorRow
+                label="Color del borde (hover)"
+                value={config.cursor_hover_stroke_color}
+                onChange={v => update('cursor_hover_stroke_color', v)}
+              />
+              <div className="design-preview" style={{
+                display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 0',
+              }}>
+                <span style={{ fontSize: '13px', color: '#888' }}>Standby</span>
+                <svg width="16" height="16">
+                  <circle cx="8" cy="8" r={config.cursor_radius} fill={config.cursor_color}/>
+                </svg>
+                <span style={{ fontSize: '13px', color: '#888' }}>Hover</span>
+                <svg width="16" height="16">
+                  <circle cx="8" cy="8" r={config.cursor_radius} fill={config.cursor_color}
+                    stroke={config.cursor_hover_stroke_color} strokeWidth={config.cursor_hover_stroke_width}/>
+                </svg>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* ── ANIMACIONES ── */}
       <div className="design-card">
         <div className="design-card-head">
@@ -337,6 +404,23 @@ function SelectRow({ label, value, options, onChange }) {
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function ColorRow({ label, value, onChange }) {
+  return (
+    <div className="design-row">
+      <label>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <input
+          type="color"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          style={{ width: '36px', height: '30px', padding: 0, border: '1px solid #ccc', cursor: 'pointer' }}
+        />
+        <span style={{ fontSize: '12px', color: '#888', fontFamily: 'monospace' }}>{value}</span>
+      </div>
     </div>
   );
 }

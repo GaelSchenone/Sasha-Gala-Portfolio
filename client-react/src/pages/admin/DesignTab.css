@@ -104,6 +104,21 @@
   gap: 40px;
 }
 
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #444;
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #222;
+}
+
 @media (max-width: 700px) {
   .design-row {
     grid-template-columns: 1fr;

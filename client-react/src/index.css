@@ -107,18 +107,4 @@ a {
   min-height: 0;
 }
 
-/* ============================================
-   CUSTOM CURSOR
-   ============================================ */
-*, *::before, *::after {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='3' fill='black'/%3E%3C/svg%3E") 10 10, auto !important;
-}
-
-a, button, input, select, textarea, label, summary, [role="button"], [tabindex], .clickable {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='3' fill='black' stroke='black' stroke-width='2.5'/%3E%3C/svg%3E") 10 10, auto /* pointer */ !important;
-}
-
-
-
-
 
