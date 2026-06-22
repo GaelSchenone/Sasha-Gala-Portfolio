@@ -196,8 +196,8 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
               >
                 <span className="reorder-drag-spacer" />
                 <span className="td-name">
-                  <span>{project.project_name}</span>
                   <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
+                  <span>{project.project_name}</span>
                 </span>
                 <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
                 <span className="td-status"><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
@@ -256,10 +256,10 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                     style={{ cursor: 'pointer' }}
                   >
                     <span className="reorder-drag-handle" title="Arrastrar para reordenar" onClick={e => e.stopPropagation()}>⠿</span>
-                    <span className="td-name">
-                      <span>{project.project_name}</span>
-                      <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
-                    </span>
+                      <span className="td-name">
+                        <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
+                        <span>{project.project_name}</span>
+                      </span>
                       <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
                       <span className="td-status"><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
                       <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
