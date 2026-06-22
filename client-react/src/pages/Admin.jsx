@@ -134,6 +134,7 @@ export function Admin() {
 function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, handleToggleStatus, statusLabel, statusColor, setScrollSelectorProject }) {
   const [orderedPublished, setOrderedPublished] = useState([]);
   const [reordering, setReordering] = useState(false);
+  const dragOccurred = useRef(false);
 
   useEffect(() => {
     setOrderedPublished([...published].sort((a, b) => a.display_order - b.display_order));
@@ -252,7 +253,12 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                 const menuItems = ellipsisItems(project);
                 return (
                   <Reorder.Item key={project.project_id} value={project} className="admin-reorder-item"
-                    onClick={() => navigate(`/admin/edit/${project.project_id}`)}
+                    onDragStart={() => { dragOccurred.current = false; }}
+                    onDragEnd={() => { dragOccurred.current = true; }}
+                    onClick={() => {
+                      if (dragOccurred.current) { dragOccurred.current = false; return; }
+                      navigate(`/admin/edit/${project.project_id}`);
+                    }}
                     style={{ cursor: 'pointer' }}
                   >
                     <span className="reorder-drag-handle" title="Arrastrar para reordenar" onClick={e => e.stopPropagation()}>⠿</span>
