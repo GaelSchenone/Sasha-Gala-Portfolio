@@ -4,17 +4,18 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN npm ci
+# Install pnpm and dependencies
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --frozen-lockfile
 
 # Copy source
 COPY . .
 
 ARG VITE_API_URL
 ARG VITE_CLOUDINARY_CLOUD_NAME
-RUN npm run build
+RUN pnpm run build
 
 # Production stage with nginx
 FROM nginx:alpine
