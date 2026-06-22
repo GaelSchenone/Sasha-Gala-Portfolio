@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { siteConfigService } from '../../services/api';
+import { Check } from 'lucide-react';
 import './DesignTab.css';
 
 const DEFAULT_CONFIG = {
@@ -19,9 +20,18 @@ const DEFAULT_CONFIG = {
   // Cursor
   cursor_enabled: true,
   cursor_radius: 3,
+  // Standby
   cursor_color: '#000000',
+  cursor_opacity: 100,
+  cursor_stroke_width: 0,
+  cursor_stroke_color: '#000000',
+  cursor_stroke_opacity: 100,
+  // Hover
+  cursor_hover_color: '#000000',
+  cursor_hover_opacity: 100,
   cursor_hover_stroke_width: 2.5,
   cursor_hover_stroke_color: '#000000',
+  cursor_hover_stroke_opacity: 100,
 };
 
 const FONT_OPTIONS = [
@@ -111,7 +121,7 @@ export function DesignTab() {
         <h2 className="admin-section-title">Diseño</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {savedAt > 0 && (
-            <span className="unsaved-badge" style={{ background: '#e6f4ea', color: '#1e8e3e' }}>✓ Guardado</span>
+            <span className="unsaved-badge" style={{ background: '#e6f4ea', color: '#1e8e3e' }}><Check size={14} strokeWidth={2.5} style={{ marginRight: 3 }} /> Guardado</span>
           )}
           <button onClick={handleSave} className="btn-add-project" disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar'}
@@ -305,39 +315,72 @@ export function DesignTab() {
           </div>
           {config.cursor_enabled && (
             <>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#555', margin: '12px 0 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Standby</div>
+              <AlphaColorRow
+                label="Color de relleno"
+                hex={config.cursor_color}
+                opacity={config.cursor_opacity}
+                onHexChange={v => update('cursor_color', v)}
+                onOpacityChange={v => update('cursor_opacity', v)}
+              />
               <SliderRow
-                label="Radio del círculo"
+                label="Tamaño"
                 value={config.cursor_radius}
-                min={1} max={6} step={0.5} unit="px"
+                min={1} max={10} step={0.5} unit="px"
                 onChange={v => update('cursor_radius', v)}
               />
-              <ColorRow
-                label="Color (standby)"
-                value={config.cursor_color}
-                onChange={v => update('cursor_color', v)}
+              <SliderRow
+                label="Grosor del borde"
+                value={config.cursor_stroke_width}
+                min={0} max={5} step={0.5} unit="px"
+                onChange={v => update('cursor_stroke_width', v)}
+              />
+              <AlphaColorRow
+                label="Color del borde"
+                hex={config.cursor_stroke_color}
+                opacity={config.cursor_stroke_opacity}
+                onHexChange={v => update('cursor_stroke_color', v)}
+                onOpacityChange={v => update('cursor_stroke_opacity', v)}
+              />
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#555', margin: '16px 0 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Hover</div>
+              <AlphaColorRow
+                label="Color de relleno"
+                hex={config.cursor_hover_color}
+                opacity={config.cursor_hover_opacity}
+                onHexChange={v => update('cursor_hover_color', v)}
+                onOpacityChange={v => update('cursor_hover_opacity', v)}
               />
               <SliderRow
-                label="Grosor del borde (hover)"
+                label="Grosor del borde"
                 value={config.cursor_hover_stroke_width}
-                min={0.5} max={5} step={0.5} unit="px"
+                min={0} max={5} step={0.5} unit="px"
                 onChange={v => update('cursor_hover_stroke_width', v)}
               />
-              <ColorRow
-                label="Color del borde (hover)"
-                value={config.cursor_hover_stroke_color}
-                onChange={v => update('cursor_hover_stroke_color', v)}
+              <AlphaColorRow
+                label="Color del borde"
+                hex={config.cursor_hover_stroke_color}
+                opacity={config.cursor_hover_stroke_opacity}
+                onHexChange={v => update('cursor_hover_stroke_color', v)}
+                onOpacityChange={v => update('cursor_hover_stroke_opacity', v)}
               />
               <div className="design-preview" style={{
                 display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 0',
               }}>
                 <span style={{ fontSize: '13px', color: '#888' }}>Standby</span>
                 <svg width="16" height="16">
-                  <circle cx="8" cy="8" r={config.cursor_radius} fill={config.cursor_color}/>
+                  <circle cx="8" cy="8" r={config.cursor_radius} fill={config.cursor_color}
+                    opacity={(config.cursor_opacity ?? 100) / 100}
+                    stroke={config.cursor_stroke_width > 0 ? config.cursor_stroke_color : undefined}
+                    strokeWidth={config.cursor_stroke_width > 0 ? config.cursor_stroke_width : undefined}
+                  />
                 </svg>
                 <span style={{ fontSize: '13px', color: '#888' }}>Hover</span>
                 <svg width="16" height="16">
-                  <circle cx="8" cy="8" r={config.cursor_radius} fill={config.cursor_color}
-                    stroke={config.cursor_hover_stroke_color} strokeWidth={config.cursor_hover_stroke_width}/>
+                  <circle cx="8" cy="8" r={config.cursor_radius}
+                    fill={config.cursor_hover_color} opacity={(config.cursor_hover_opacity ?? 100) / 100}
+                    stroke={config.cursor_hover_stroke_width > 0 ? config.cursor_hover_stroke_color : undefined}
+                    strokeWidth={config.cursor_hover_stroke_width > 0 ? config.cursor_hover_stroke_width : undefined}
+                  />
                 </svg>
               </div>
             </>
@@ -404,6 +447,46 @@ function SelectRow({ label, value, options, onChange }) {
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function hexToRgba(hex, opacity) {
+  if (!hex || hex.length < 7) return 'transparent'
+  const r = parseInt(hex.slice(1,3), 16)
+  const g = parseInt(hex.slice(3,5), 16)
+  const b = parseInt(hex.slice(5,7), 16)
+  return `rgba(${r},${g},${b},${(opacity ?? 100) / 100})`
+}
+
+function AlphaColorRow({ label, hex, opacity, onHexChange, onOpacityChange }) {
+  return (
+    <div className="design-row">
+      <label>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <input
+          type="color"
+          value={hex || '#000000'}
+          onChange={e => onHexChange(e.target.value)}
+          style={{ width: '36px', height: '30px', padding: 0, border: '1px solid #ccc', cursor: 'pointer' }}
+        />
+        <input
+          type="range"
+          min={0} max={100} step={1}
+          value={opacity ?? 100}
+          onChange={e => onOpacityChange(parseInt(e.target.value))}
+          title={`Opacidad: ${opacity ?? 100}%`}
+          style={{ width: '60px' }}
+        />
+        <span style={{
+          fontSize: '12px', fontFamily: 'monospace',
+          background: hex || '#000000',
+          color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+          borderRadius: '3px', padding: '1px 6px',
+        }}>
+          {opacity ?? 100}%
+        </span>
+      </div>
     </div>
   );
 }

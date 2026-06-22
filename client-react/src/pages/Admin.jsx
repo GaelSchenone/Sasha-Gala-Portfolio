@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Reorder } from 'framer-motion';
+import { ExternalLink, MoreVertical, GripVertical, Plus, X } from 'lucide-react';
 import { projectService, archiveService, siteConfigService, assetService, validateImageFile, compressImage, faviconUrl } from '../services/api';
 import { DesignTab } from './admin/DesignTab';
 import { ScrollImageSelector } from './admin/ScrollImageSelector';
@@ -93,7 +94,12 @@ export function Admin() {
             <h1 className="admin-title">Panel de Control</h1>
             <p className="admin-subtitle">Bienvenido, {user?.name}</p>
           </div>
-          <button onClick={handleLogout} className="admin-logout">Cerrar Sesión</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <a href="/" target="_blank" rel="noopener noreferrer" className="admin-logout" style={{ textDecoration: 'none' }}>
+              <ExternalLink size={14} strokeWidth={2} style={{ marginRight: 6 }} /> Ver página
+            </a>
+            <button onClick={handleLogout} className="admin-logout">Cerrar Sesión</button>
+          </div>
         </div>
 
         <div className="admin-tabs">
@@ -134,7 +140,7 @@ export function Admin() {
 function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuRefs, navigate, handleDelete, handleArchive, handleToggleStatus, statusLabel, statusColor, setScrollSelectorProject }) {
   const [orderedPublished, setOrderedPublished] = useState([]);
   const [reordering, setReordering] = useState(false);
-  const dragOccurred = useRef(false);
+  const pointerPos = useRef(null);
 
   useEffect(() => {
     setOrderedPublished([...published].sort((a, b) => a.display_order - b.display_order));
@@ -197,13 +203,13 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
               >
                 <span className="reorder-drag-spacer" />
                 <span className="td-name">
-                  <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
+                  <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público"><ExternalLink size={13} strokeWidth={1.5} /></a>
                   <span>{project.project_name}</span>
                 </span>
                 <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
                 <span className="td-status"><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
                 <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
-                  <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
+                  <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}><MoreVertical size={18} strokeWidth={1.5} /></button>
                   {openMenu === project.project_id && (
                     <div className="ellipsis-menu">
                       {menuItems.map((item, i) => (
@@ -228,7 +234,7 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
     <>
       <div className="admin-section-header">
         <h2 className="admin-section-title">Proyectos</h2>
-        <button onClick={() => navigate('/admin/edit/new')} className="btn-add-project">+ Nuevo Proyecto</button>
+        <button onClick={() => navigate('/admin/edit/new')} className="btn-add-project"><Plus size={14} strokeWidth={2} /> Nuevo Proyecto</button>
       </div>
 
       <section className="admin-section">
@@ -253,23 +259,27 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                 const menuItems = ellipsisItems(project);
                 return (
                   <Reorder.Item key={project.project_id} value={project} className="admin-reorder-item"
-                    onDragStart={() => { dragOccurred.current = false; }}
-                    onDragEnd={() => { dragOccurred.current = true; }}
-                    onClick={() => {
-                      if (dragOccurred.current) { dragOccurred.current = false; return; }
+                    onPointerDown={(e) => { pointerPos.current = { x: e.clientX, y: e.clientY }; }}
+                    onClick={(e) => {
+                      if (pointerPos.current) {
+                        const dx = Math.abs(e.clientX - pointerPos.current.x);
+                        const dy = Math.abs(e.clientY - pointerPos.current.y);
+                        pointerPos.current = null;
+                        if (dx > 4 || dy > 4) return;
+                      }
                       navigate(`/admin/edit/${project.project_id}`);
                     }}
                     style={{ cursor: 'pointer' }}
                   >
-                    <span className="reorder-drag-handle" title="Arrastrar para reordenar" onClick={e => e.stopPropagation()}>⠿</span>
+                    <span className="reorder-drag-handle" title="Arrastrar para reordenar" onClick={e => e.stopPropagation()}><GripVertical size={18} strokeWidth={1.5} /></span>
                       <span className="td-name">
-                        <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
+                        <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público"><ExternalLink size={13} strokeWidth={1.5} /></a>
                         <span>{project.project_name}</span>
                       </span>
                       <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
                       <span className="td-status"><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
                       <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
-                      <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
+                      <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}><MoreVertical size={18} strokeWidth={1.5} /></button>
                       {openMenu === project.project_id && (
                         <div className="ellipsis-menu">
                           {menuItems.map((item, i) => (
@@ -387,7 +397,7 @@ function ArchiveTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {uploading && <span style={{ fontSize: '12px', color: '#e65100' }}>Subiendo...</span>}
           <button onClick={() => fileInputRef.current.click()} className="btn-add-project" disabled={uploading}>
-            + Añadir Fotos
+            <Plus size={14} strokeWidth={2} /> Añadir Fotos
           </button>
         </div>
       </div>
@@ -413,13 +423,13 @@ function ArchiveTab() {
         onDrop={handleDrop}
       >
         <div className="archive-add-card" onClick={() => fileInputRef.current.click()}>
-          <span className="archive-add-icon">+</span>
+          <Plus size={40} strokeWidth={1} />
           <span>Añadir</span>
         </div>
         {images.map((img, idx) => (
           <div key={img.img_id} className="archive-card" draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', idx)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); moveImage(from, idx); }}>
             <img src={img.img_route} alt="" />
-            <button className="archive-remove" onClick={() => handleDelete(img.img_id)}>✕</button>
+            <button className="archive-remove" onClick={() => handleDelete(img.img_id)}><X size={12} strokeWidth={2} /></button>
           </div>
         ))}
       </div>
@@ -540,10 +550,10 @@ function AboutTab() {
               <div key={idx} className="link-row">
                 <input placeholder="Título" value={link.title || ''} onChange={e => updateLink(idx, 'title', e.target.value)} />
                 <input placeholder="URL" value={link.url || ''} onChange={e => updateLink(idx, 'url', e.target.value)} />
-                <button className="btn-remove" onClick={() => removeLink(idx)}>✕</button>
+                <button className="btn-remove" onClick={() => removeLink(idx)}><X size={12} strokeWidth={2} /></button>
               </div>
             ))}
-            <button className="btn-add-link" onClick={addLink}>+ Añadir Link</button>
+            <button className="btn-add-link" onClick={addLink}><Plus size={14} strokeWidth={2} /> Añadir Link</button>
           </div>
         </div>
       </div>

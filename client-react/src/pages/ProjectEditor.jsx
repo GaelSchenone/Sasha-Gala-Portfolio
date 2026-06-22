@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder } from 'framer-motion';
+import { AlertTriangle, ArrowLeft, Check, X } from 'lucide-react';
 import { projectService, validateImageFile, compressImage, getTokenExpiresInMs } from '../services/api';
 import './ProjectEditor.css';
 import './View.css';
@@ -387,13 +388,13 @@ export function ProjectEditor() {
             borderBottom: '1px solid #ffeaa7',
             fontWeight: 600,
           }}>
-            ⚠ Tu sesión está por vencerse. Guardá tus cambios.
+            <AlertTriangle size={14} strokeWidth={1.5} style={{ marginRight: 6 }} /> Tu sesión está por vencerse. Guardá tus cambios.
           </div>
         )}
         <div className="sidebar-header">
-          <button onClick={handleBack} className="btn-back">← VOLVER</button>
+          <button onClick={handleBack} className="btn-back"><ArrowLeft size={14} strokeWidth={2} style={{ marginRight: 4 }} /> VOLVER</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {savedAt > 0 && <span className="unsaved-badge" style={{ background: '#e6f4ea', color: '#1e8e3e' }}>✓ Guardado</span>}
+            {savedAt > 0 && <span className="unsaved-badge" style={{ background: '#e6f4ea', color: '#1e8e3e' }}><Check size={14} strokeWidth={2.5} style={{ marginRight: 3 }} /> Guardado</span>}
             {uploading && <span className="unsaved-badge" style={{ background: '#fff3e0', color: '#e65100' }}>Subiendo...</span>}
             {dirty && <span className="unsaved-badge">Sin guardar</span>}
             <span className="status-pill" style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}>
@@ -470,7 +471,7 @@ export function ProjectEditor() {
             <div className="image-props-panel">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span style={{ fontSize: '10px', fontWeight: 700 }}>IMAGEN SELECCIONADA</span>
-                <button className="btn-remove" onClick={() => setSelectedImage(null)}>✕</button>
+                <button className="btn-remove" onClick={() => setSelectedImage(null)}><X size={12} strokeWidth={2} /></button>
               </div>
               <div className="form-group">
                 <label>BACKGROUND-SIZE</label>
@@ -708,7 +709,7 @@ export function ProjectEditor() {
                                 onClick={(e) => { e.stopPropagation(); removeImage(section.id, rowIdx, colIdx); }}
                                 title="Quitar imagen"
                               >
-                                ✕
+                                <X size={14} strokeWidth={2} />
                               </button>
                             </div>
                           );

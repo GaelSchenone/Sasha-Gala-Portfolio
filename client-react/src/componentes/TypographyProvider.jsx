@@ -38,12 +38,25 @@ const applyConfig = (config) => {
 
 const CUR_STYLE_ID = 'oc-cursor-style'
 
+const hexToRgba = (hex, opacity) => {
+  if (!hex || hex.length < 7) return 'transparent'
+  const r = parseInt(hex.slice(1,3), 16)
+  const g = parseInt(hex.slice(3,5), 16)
+  const b = parseInt(hex.slice(5,7), 16)
+  return `rgba(${r},${g},${b},${(opacity ?? 100) / 100})`
+}
+
 const applyCursorConfig = (config) => {
   const enabled = config.cursor_enabled !== false
   const r = config.cursor_radius ?? 3
-  const color = config.cursor_color || '#000000'
-  const strokeW = config.cursor_hover_stroke_width ?? 2.5
-  const strokeColor = config.cursor_hover_stroke_color || '#000000'
+
+  const defColor = hexToRgba(config.cursor_color, config.cursor_opacity)
+  const defStrokeW = config.cursor_stroke_width ?? 0
+  const defStrokeColor = hexToRgba(config.cursor_stroke_color, config.cursor_stroke_opacity)
+
+  const ptrColor = hexToRgba(config.cursor_hover_color ?? config.cursor_color, config.cursor_hover_opacity ?? config.cursor_opacity)
+  const ptrStrokeW = config.cursor_hover_stroke_width ?? 2.5
+  const ptrStrokeColor = hexToRgba(config.cursor_hover_stroke_color ?? '#000000', config.cursor_hover_stroke_opacity ?? 100)
 
   let styleEl = document.getElementById(CUR_STYLE_ID)
   if (!styleEl) {
@@ -57,14 +70,15 @@ const applyCursorConfig = (config) => {
     return
   }
 
-  const def = encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'>` +
-    `<circle cx='10' cy='10' r='${r}' fill='${color}'/></svg>`
-  )
-  const ptr = encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'>` +
-    `<circle cx='10' cy='10' r='${r}' fill='${color}' stroke='${strokeColor}' stroke-width='${strokeW}'/></svg>`
-  )
+  const svg = (fill, stroke, strokeW) => {
+    let inner = `<circle cx='10' cy='10' r='${r}' fill='${fill}'`
+    if (stroke && strokeW > 0) inner += ` stroke='${stroke}' stroke-width='${strokeW}'`
+    inner += '/>'
+    return encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'>${inner}</svg>`)
+  }
+
+  const def = svg(defColor, defStrokeColor, defStrokeW)
+  const ptr = svg(ptrColor, ptrStrokeColor, ptrStrokeW)
 
   styleEl.textContent = `
 *, *::before, *::after {

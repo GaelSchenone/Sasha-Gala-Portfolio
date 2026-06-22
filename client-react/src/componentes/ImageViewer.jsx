@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { X, RotateCcw } from 'lucide-react'
 import './ImageViewer.css'
 
 export function ImageViewer({ src, onClose }) {
@@ -89,9 +90,9 @@ export function ImageViewer({ src, onClose }) {
   }
  }, [onClose])
 
- return (
-  <div className="viewer-overlay" onClick={onClose}>
-   <button className="viewer-close" onClick={(e) => { e.stopPropagation(); onClose(); }}>✕</button>
+  return (
+   <div className="viewer-overlay" onClick={onClose} style={{ userSelect: 'none' }}>
+    <button className="viewer-close" onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={20} strokeWidth={2} /></button>
    <div
     className="viewer-image-container"
     onWheel={handleWheel}
@@ -116,7 +117,7 @@ export function ImageViewer({ src, onClose }) {
     />
    </div>
    {scale > 1 && (
-    <button className="viewer-reset" onClick={(e) => { e.stopPropagation(); resetZoom(); }}>↺</button>
+     <button className="viewer-reset" onClick={(e) => { e.stopPropagation(); resetZoom(); }}><RotateCcw size={18} strokeWidth={2} /></button>
    )}
   </div>
  )

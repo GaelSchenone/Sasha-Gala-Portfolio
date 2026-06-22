@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Reorder } from 'framer-motion';
 import { projectService } from '../../services/api';
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
 
 export function ScrollImageSelector({ projectId, projectName, onClose }) {
   const [step, setStep] = useState(1);
@@ -78,7 +79,7 @@ export function ScrollImageSelector({ projectId, projectName, onClose }) {
               onClick={() => toggleImage(img)}
             >
               <img src={img.img_route} alt="" />
-              <div className="scroll-selector-check">{selected ? '✓' : ''}</div>
+              <div className="scroll-selector-check">{selected ? <Check size={18} strokeWidth={3} /> : ''}</div>
             </div>
           );
         })}
@@ -91,7 +92,7 @@ export function ScrollImageSelector({ projectId, projectName, onClose }) {
           disabled={scrollImages.length === 0}
           onClick={() => setStep(2)}
         >
-          Siguiente →
+          Siguiente <ArrowRight size={14} strokeWidth={2} style={{ marginLeft: 4 }} />
         </button>
       </div>
     </>
@@ -124,7 +125,7 @@ export function ScrollImageSelector({ projectId, projectName, onClose }) {
       )}
 
       <div className="scroll-selector-footer">
-        <button className="btn-modal-cancel" onClick={() => setStep(1)}>← Atrás</button>
+        <button className="btn-modal-cancel" onClick={() => setStep(1)}><ArrowLeft size={14} strokeWidth={2} style={{ marginRight: 4 }} /> Atrás</button>
         <button
           className="btn-modal-primary"
           onClick={handleSave}
@@ -153,7 +154,7 @@ export function ScrollImageSelector({ projectId, projectName, onClose }) {
           <h2 className="scroll-selector-title">
             Elegir fotos del scroll — {projectName}
           </h2>
-          <button className="scroll-selector-close" onClick={onClose}>✕</button>
+          <button className="scroll-selector-close" onClick={onClose}><X size={18} strokeWidth={2} /></button>
         </div>
 
         {step === 1 ? renderStep1() : renderStep2()}
