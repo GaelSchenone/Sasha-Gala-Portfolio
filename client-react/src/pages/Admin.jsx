@@ -200,7 +200,7 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                   <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
                 </span>
                 <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
-                <span><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
+                <span className="td-status"><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
                 <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
                   <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
                   {openMenu === project.project_id && (
@@ -260,9 +260,9 @@ function ProjectsTab({ published, drafts, archived, openMenu, setOpenMenu, menuR
                       <span>{project.project_name}</span>
                       <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="project-name-link" onClick={e => e.stopPropagation()} title="Ver proyecto público">↗</a>
                     </span>
-                    <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
-                    <span><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
-                    <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
+                      <span className="td-type">{project.project_type === 'full' ? 'Completo' : 'Rápido'}</span>
+                      <span className="td-status"><span className="status-badge" style={{ backgroundColor: sc.bg, color: sc.color }}>{statusLabel(project.status)}</span></span>
+                      <span className="td-actions" ref={el => menuRefs.current[project.project_id] = el} onClick={e => e.stopPropagation()}>
                       <button className="ellipsis-btn" onClick={() => setOpenMenu(openMenu === project.project_id ? null : project.project_id)}>⋮</button>
                       {openMenu === project.project_id && (
                         <div className="ellipsis-menu">
