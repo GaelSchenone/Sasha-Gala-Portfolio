@@ -5,7 +5,7 @@ import useWindowWidth from '../componentes/useWindowWidth'
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
-import { siteConfigService, BASE_URL } from '../services/api'
+import { siteConfigService, BASE_URL, preloadImage } from '../services/api'
 import { useInertiaScroll } from '../hooks/useInertiaScroll'
 import { useLockPageScroll } from '../hooks/useLockPageScroll'
 
@@ -126,6 +126,23 @@ export function Home() {
     [projectimages, selected]
   )
 
+  // Unloaded images are 0px wide and push the strip when they arrive, so every
+  // project's images are preloaded (in list order) and a project's strip only
+  // shows once all of them are decoded.
+  const [readyProjects, setReadyProjects] = useState(() => new Set())
+  useEffect(() => {
+    if (!projects.length || !projectimages.length) return
+    let alive = true
+    projects.forEach(p => {
+      const srcs = projectimages.filter(img => img.project_id == p.project_id).map(img => img.img_route)
+      Promise.all(srcs.map(preloadImage)).then(() => {
+        if (alive) setReadyProjects(s => new Set(s).add(p.project_id))
+      })
+    })
+    return () => { alive = false }
+  }, [projects, projectimages])
+  const imagesReady = readyProjects.has(selected)
+
   // ── selector: pick the project whose center is nearest the .selector marker ──
   const detectSelected = () => {
     if (hoveringRef.current) return
@@ -180,7 +197,7 @@ export function Home() {
       axis: 'x',
       enabled: projectimages.length > 0,
       getAutoSpeed: () => scrollSpeeds.images,
-      isPaused: () => viewerOpenRef.current,
+      isPaused: () => viewerOpenRef.current || !imagesReady,
     },
     [projectimages, screenWidth]
   )
@@ -236,7 +253,11 @@ export function Home() {
             onMouseEnter={() => { if (!isMobile) isOverImages.current = true }}
             onMouseLeave={() => { isOverImages.current = false }}
           >
-            <div className="carrousel-work" ref={imagesContainerRef} style={{ userSelect: 'none' }}>
+            <div
+              className="carrousel-work"
+              ref={imagesContainerRef}
+              style={{ userSelect: 'none', opacity: imagesReady ? 1 : 0, transition: imagesReady ? 'opacity 0.3s ease' : 'none' }}
+            >
               {imageStrip.map((image, index) => (
                 <ClickableImage
                   key={`image-${index}`}

@@ -5,7 +5,7 @@ import useWindowWidth from '../componentes/useWindowWidth'
 import { Header } from '../componentes/Header'
 import { ImageViewer } from '../componentes/ImageViewer'
 import { ClickableImage } from '../componentes/ClickableImage'
-import { siteConfigService, BASE_URL } from '../services/api'
+import { siteConfigService, BASE_URL, preloadImage } from '../services/api'
 import { useLockPageScroll } from '../hooks/useLockPageScroll'
 import { useInertiaScroll } from '../hooks/useInertiaScroll'
 
@@ -36,6 +36,16 @@ export function Archive() {
       .catch(() => {})
   }, [])
 
+  // Same as Home: show the strip only once every image is decoded, so late
+  // images don't push the ones after them.
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    if (!archiveImages.length) return
+    let alive = true
+    Promise.all(archiveImages.map(img => preloadImage(img.img_route))).then(() => { if (alive) setReady(true) })
+    return () => { alive = false }
+  }, [archiveImages])
+
   // Same inertia engine as Home (wheel/drag/touch + glide).
   const copies = useInertiaScroll(
     {
@@ -44,7 +54,7 @@ export function Archive() {
       axis: 'x',
       enabled: archiveImages.length > 0,
       getAutoSpeed: () => 30,
-      isPaused: () => viewerOpenRef.current,
+      isPaused: () => viewerOpenRef.current || !ready,
     },
     [archiveImages, screenWidth]
   )
@@ -58,7 +68,7 @@ export function Archive() {
       <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <div className="containerwork" style={{ width: '100%', height: '100%' }}>
           <div className="displaywork flex" ref={displayRef} style={{ overflow: 'hidden', width: '100%', height: '100%' }}>
-            <div className="carrousel" ref={imagesContainerRef} style={{ display: 'flex', userSelect: 'none' }}>
+            <div className="carrousel" ref={imagesContainerRef} style={{ display: 'flex', userSelect: 'none', opacity: ready ? 1 : 0, transition: 'opacity 0.3s ease' }}>
               {strip.map((image, index) => (
                 <ClickableImage
                   key={`archive-${index}`}

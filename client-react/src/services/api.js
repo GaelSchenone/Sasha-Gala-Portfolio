@@ -200,6 +200,14 @@ export const compressImage = async (file, { maxDimension = 3000, quality = 0.9, 
   });
 };
 
+// Resolves once the image is downloaded and decoded (or failed — a broken
+// image must not block whatever waits on it).
+export const preloadImage = (src) => {
+  const img = new Image();
+  img.src = src;
+  return img.decode().catch(() => {});
+};
+
 export const projectService = {
   getAll: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
