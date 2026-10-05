@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './ClickableImage.css'
 
-export function ClickableImage({ src, alt, onClick, style, className = '' }) {
+export function ClickableImage({ src, alt, onClick, style, className = '', ...rest }) {
  const [isPressed, setIsPressed] = useState(false)
 
  const handleMouseDown = () => setIsPressed(true)
@@ -17,6 +17,7 @@ export function ClickableImage({ src, alt, onClick, style, className = '' }) {
 
  return (
   <img
+   {...rest}
    src={src}
    alt={alt}
     className={`clickable-image clickable ${isPressed ? 'pressed' : ''} ${className}`}

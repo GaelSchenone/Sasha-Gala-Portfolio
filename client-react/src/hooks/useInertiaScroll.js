@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Infinite auto-scroll with wheel/drag/touch inertia.
@@ -12,21 +12,21 @@ import { useEffect, useRef } from 'react'
  * - Drag (mouse) and touch build velocity from movement, so releasing flings.
  * - After any interaction settles, auto-scroll resumes after RESUME_DELAY.
  *
- * The consumer owns layout: it provides the wrap period (`getWrapSpan`, the size
- * of the looped content block) and an optional per-frame callback. All option
- * callbacks are read through a ref, so changing speed/pause does NOT re-init.
+ * The consumer renders `copies` repeats of its list and marks the first item of
+ * each repeat with `data-loop-start`; the wrap period is measured from those
+ * markers, and `copies` grows/shrinks so the strip always covers the viewport.
+ * All option callbacks are read through a ref, so changing speed/pause does NOT re-init.
  *
  * @param {object}   opts
  * @param {React.RefObject} opts.containerRef  element that receives the transform
- * @param {React.RefObject} [opts.listenerRef] element that receives input events (defaults to container's scroll parent or the container)
+ * @param {React.RefObject} [opts.listenerRef] element that receives input events and defines the visible size (defaults to the container)
  * @param {'x'|'y'}  opts.axis
  * @param {() => number} opts.getAutoSpeed      auto-scroll speed in px/sec
- * @param {() => number} opts.getWrapSpan       period for the infinite wrap (px); 0 disables wrapping
  * @param {() => boolean} [opts.isPaused]       external pause (viewer open, hover, etc.)
  * @param {(offset:number) => void} [opts.onAfterFrame]  runs each frame after the transform
- * @param {React.MutableRefObject} [opts.controlsRef]   receives { resetOffset, getOffset }
  * @param {boolean}  [opts.enabled=true]
  * @param {Array}    [deps=[]]  structural deps that should re-init the loop
+ * @returns {number} how many copies of the list to render
  */
 export function useInertiaScroll(opts, deps = []) {
   // Latest-options ref: the RAF loop and event handlers read callbacks through
@@ -39,12 +39,12 @@ export function useInertiaScroll(opts, deps = []) {
     listenerRef,
     axis = 'y',
     enabled = true,
-    controlsRef,
   } = opts
 
   // Persistent physics state (survives re-renders, reset on re-init)
   const offset = useRef(0)
   const velocity = useRef(0)
+  const [copies, setCopies] = useState(3)
 
   useEffect(() => {
     if (!enabled) return
@@ -62,6 +62,8 @@ export function useInertiaScroll(opts, deps = []) {
     const MOUSE_THRESH = 40    // |deltaPx| above this (and line mode) = mouse wheel
     const LINE_PX = 40
     const DRAG_SMOOTH = 0.6    // velocity smoothing on drag/touch
+    // ponytail: hard cap, raise it if a list of tiny items ever shows a gap
+    const MAX_COPIES = 20
 
     let interacting = false
     let dragging = false
@@ -86,13 +88,31 @@ export function useInertiaScroll(opts, deps = []) {
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
-    const wrap = () => {
-      const span = cb.current.getWrapSpan() || 0
+    // Measured from the live DOM every frame, so it is exact with mixed item
+    // sizes and never stale against React's render of a new list.
+    const period = () => {
+      const starts = container.querySelectorAll('[data-loop-start]')
+      if (starts.length < 2) return 0
+      const a = starts[0].getBoundingClientRect()
+      const b = starts[1].getBoundingClientRect()
+      return axis === 'x' ? b.left - a.left : b.top - a.top
+    }
+
+    const wrap = (span) => {
       if (span <= 0) return
       // Keep offset within (-span, 0]; jumps by a full period are invisible
       // because the content block is repeated.
       while (offset.current <= -span) offset.current += span
       while (offset.current > 0) offset.current -= span
+    }
+
+    // Offset lives in (-span, 0], so the strip must reach span + visible size.
+    // Skipped while images load: their 0px width would shrink span and explode the count.
+    const fitCopies = (span) => {
+      if (span <= 0) return
+      if ([...container.querySelectorAll('img')].some(img => !img.complete)) return
+      const visible = axis === 'x' ? listener.clientWidth : listener.clientHeight
+      setCopies(Math.min(MAX_COPIES, Math.max(2, Math.ceil(visible / span) + 1)))
     }
 
     const apply = () => {
@@ -125,8 +145,10 @@ export function useInertiaScroll(opts, deps = []) {
         offset.current -= (cb.current.getAutoSpeed() * dtMs) / 1000
       }
 
-      wrap()
+      const span = period()
+      wrap(span)
       apply()
+      fitCopies(span)
       cb.current.onAfterFrame?.(offset.current)
       rafId = requestAnimationFrame(tick)
     }
@@ -223,13 +245,6 @@ export function useInertiaScroll(opts, deps = []) {
     listener.addEventListener('touchmove', onTouchMove, { passive: false })
     listener.addEventListener('touchend', onTouchEnd)
 
-    if (controlsRef) {
-      controlsRef.current = {
-        resetOffset: (value = 0) => { offset.current = value; velocity.current = 0 },
-        getOffset: () => offset.current,
-      }
-    }
-
     rafId = requestAnimationFrame(tick)
 
     return () => {
@@ -247,4 +262,6 @@ export function useInertiaScroll(opts, deps = []) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, axis, ...deps])
+
+  return copies
 }

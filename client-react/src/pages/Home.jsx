@@ -10,8 +10,6 @@ import { useInertiaScroll } from '../hooks/useInertiaScroll'
 import { useLockPageScroll } from '../hooks/useLockPageScroll'
 
 const MOBILE_BP = 1157
-const PROJECT_COPIES = 6  // enough repeats so the loop never shows a gap
-const IMAGE_COPIES = 3
 
 const normalizeImageRoute = (route) => {
   if (!route) return route
@@ -49,7 +47,6 @@ export function Home() {
   const projectsWrapperRef = useRef(null)
   const imagesContainerRef = useRef(null)
   const displayRef = useRef(null)
-  const imagesControls = useRef(null)
 
   // ── interaction state (read inside animation callbacks) ──
   const isOverSidebar = useRef(false)
@@ -161,23 +158,13 @@ export function Home() {
   }
 
   // ── projects carousel: vertical on desktop, horizontal on mobile ──
-  useInertiaScroll(
+  const projectCopies = useInertiaScroll(
     {
       containerRef: projectsContainerRef,
       listenerRef: projectsWrapperRef,
       axis: isMobile ? 'x' : 'y',
       enabled: projects.length > 0,
       getAutoSpeed: () => scrollSpeeds.projects,
-      getWrapSpan: () => {
-        const c = projectsContainerRef.current
-        const first = c?.querySelector('.project-item')
-        if (!first) return 0
-        const mob = window.innerWidth <= MOBILE_BP
-        const gap = mob ? 20 : 5
-        const size = (mob ? first.offsetWidth : first.offsetHeight) + gap
-        const marginLeft = mob ? 20 : 0
-        return size * projects.length * 3 + marginLeft
-      },
       isPaused: () =>
         isOverSidebar.current || isOverImages.current || viewerOpenRef.current || hoveringRef.current,
       onAfterFrame: detectSelected,
@@ -186,36 +173,25 @@ export function Home() {
   )
 
   // ── images carousel: always horizontal ──
-  useInertiaScroll(
+  const imageCopies = useInertiaScroll(
     {
       containerRef: imagesContainerRef,
       listenerRef: displayRef,
       axis: 'x',
       enabled: projectimages.length > 0,
       getAutoSpeed: () => scrollSpeeds.images,
-      getWrapSpan: () => {
-        const c = imagesContainerRef.current
-        const first = c?.querySelector('img')
-        if (!first) return 0
-        const size = first.offsetWidth + 10 // gap
-        return size * filteredImages.length * 3
-      },
       isPaused: () => viewerOpenRef.current,
-      controlsRef: imagesControls,
     },
     [projectimages, screenWidth]
   )
 
-  // Reset the images strip to the start whenever the selected project changes
-  useEffect(() => { imagesControls.current?.resetOffset(0) }, [selected])
-
   const projectStrip = useMemo(
-    () => Array.from({ length: PROJECT_COPIES }, () => projects).flat(),
-    [projects]
+    () => Array.from({ length: projectCopies }, () => projects).flat(),
+    [projects, projectCopies]
   )
   const imageStrip = useMemo(
-    () => Array.from({ length: IMAGE_COPIES }, () => filteredImages).flat(),
-    [filteredImages]
+    () => Array.from({ length: imageCopies }, () => filteredImages).flat(),
+    [filteredImages, imageCopies]
   )
 
   return (
@@ -240,6 +216,7 @@ export function Home() {
                 <div
                   className="project-item"
                   key={`project-${index}`}
+                  data-loop-start={index % projects.length === 0 || undefined}
                   data-key={project.project_id}
                   data-text={project.project_name}
                   onMouseEnter={(e) => { hoveringRef.current = true; setHighlight(e.currentTarget); setSelected(project.project_id) }}
@@ -263,6 +240,7 @@ export function Home() {
               {imageStrip.map((image, index) => (
                 <ClickableImage
                   key={`image-${index}`}
+                  data-loop-start={index % filteredImages.length === 0 || undefined}
                   src={image.img_route}
                   alt=""
                   onClick={() => handleImageClick(image)}

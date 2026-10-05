@@ -9,8 +9,6 @@ import { siteConfigService, BASE_URL } from '../services/api'
 import { useLockPageScroll } from '../hooks/useLockPageScroll'
 import { useInertiaScroll } from '../hooks/useInertiaScroll'
 
-const COPIES = 3
-
 export function Archive() {
   const [archiveImages, setArchiveImages] = useState([])
   const [viewerImage, setViewerImage] = useState(null)
@@ -39,25 +37,19 @@ export function Archive() {
   }, [])
 
   // Same inertia engine as Home (wheel/drag/touch + glide).
-  useInertiaScroll(
+  const copies = useInertiaScroll(
     {
       containerRef: imagesContainerRef,
       listenerRef: displayRef,
       axis: 'x',
       enabled: archiveImages.length > 0,
       getAutoSpeed: () => 30,
-      getWrapSpan: () => {
-        const first = imagesContainerRef.current?.querySelector('img')
-        if (!first) return 0
-        const gap = 10
-        return (first.offsetWidth + gap) * archiveImages.length // one copy = wrap period
-      },
       isPaused: () => viewerOpenRef.current,
     },
     [archiveImages, screenWidth]
   )
 
-  const strip = Array.from({ length: COPIES }, () => archiveImages).flat()
+  const strip = Array.from({ length: copies }, () => archiveImages).flat()
 
   return (
     <div className="static-screen">
@@ -70,6 +62,7 @@ export function Archive() {
               {strip.map((image, index) => (
                 <ClickableImage
                   key={`archive-${index}`}
+                  data-loop-start={index % archiveImages.length === 0 || undefined}
                   src={image.img_route}
                   alt={image.img_alt || 'Archived image'}
                   style={{ height: '100%', objectFit: 'cover' }}

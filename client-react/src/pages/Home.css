@@ -115,27 +115,24 @@ body,
     font-weight: 500;
 }
 
-/* DESKTOP ONLY: the elastic sidebar needs a stable width. A hidden bold
-   "ghost" (same text, weight 500) reserves the selected-weight width so the
-   column never jitters as the highlighted name flips 300 <-> 500 while it
-   auto-scrolls past the selector. On mobile the list is horizontal, so the
-   trick is unnecessary and must NOT apply. */
-@media screen and (min-width: 1158px) {
-    .project-item {
-        display: grid;
-    }
-    .project-item > .project-item-label,
-    .project-item::after {
-        grid-area: 1 / 1;
-    }
-    .project-item::after {
-        content: attr(data-text);
-        font-weight: 500;
-        height: 0;
-        overflow: hidden;
-        visibility: hidden;
-        pointer-events: none;
-    }
+/* A hidden bold "ghost" (same text, weight 500) reserves the selected-weight
+   width, so flipping the highlight 300 <-> 500 never resizes an item: the
+   desktop sidebar doesn't jitter and the mobile row doesn't shift (which would
+   also break the loop period, since only one copy is highlighted). */
+.project-item {
+    display: grid;
+}
+.project-item > .project-item-label,
+.project-item::after {
+    grid-area: 1 / 1;
+}
+.project-item::after {
+    content: attr(data-text);
+    font-weight: 500;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 /* CONTENIDO PRINCIPAL */
