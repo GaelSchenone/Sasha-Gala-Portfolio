@@ -234,6 +234,7 @@ export function Home() {
                   className="project-item"
                   key={`project-${index}`}
                   data-loop-start={index % projects.length === 0 || undefined}
+                  aria-hidden={index >= projects.length || undefined}
                   data-key={project.project_id}
                   data-text={project.project_name}
                   onMouseEnter={(e) => { hoveringRef.current = true; setHighlight(e.currentTarget); setSelected(project.project_id) }}
@@ -262,6 +263,7 @@ export function Home() {
                 <ClickableImage
                   key={`image-${index}`}
                   data-loop-start={index % filteredImages.length === 0 || undefined}
+                  aria-hidden={index >= filteredImages.length || undefined}
                   src={image.img_route}
                   alt=""
                   onClick={() => handleImageClick(image)}

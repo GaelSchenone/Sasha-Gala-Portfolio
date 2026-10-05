@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 /**
  * Infinite auto-scroll with wheel/drag/touch inertia.
  *
  * Physics model adapted from the reference prototype:
- * - Auto-scrolls continuously at `getAutoSpeed()` px/sec (frame-rate independent).
- * - Mouse wheel injects an impulse into a velocity that decays by FRICTION each
- *   frame (real inertia / glide).
+ * - Auto-scrolls continuously at `getAutoSpeed()` px/sec (frame-rate independent);
+ *   disabled when the user prefers reduced motion.
+ * - Mouse wheel injects an impulse into a velocity (px per 60Hz frame) that decays
+ *   by FRICTION per 60Hz frame, scaled by elapsed time so the glide feels the same
+ *   at any refresh rate.
  * - Trackpad scrolls map 1:1 to offset (the OS already provides its own inertia),
  *   detected by small per-event deltas.
  * - Drag (mouse) and touch build velocity from movement, so releasing flings.
@@ -32,7 +34,7 @@ export function useInertiaScroll(opts, deps = []) {
   // Latest-options ref: the RAF loop and event handlers read callbacks through
   // this, so changing speed/pause/wrap never re-inits the loop.
   const cb = useRef(opts)
-  useEffect(() => { cb.current = opts })
+  useLayoutEffect(() => { cb.current = opts })
 
   const {
     containerRef,
@@ -75,6 +77,8 @@ export function useInertiaScroll(opts, deps = []) {
     let lastFrameT = null
 
     const TOUCH_THRESHOLD = 5   // px in our axis before we hijack the gesture
+    const FRAME_MS = 1000 / 60  // velocity/friction units are per 60Hz frame
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
     container.style.willChange = 'transform'
 
@@ -134,13 +138,14 @@ export function useInertiaScroll(opts, deps = []) {
 
       if (Math.abs(velocity.current) > MIN_V) {
         // Inertia owns the motion
-        offset.current += velocity.current
-        velocity.current *= FRICTION
+        const frames = dtMs / FRAME_MS
+        offset.current += velocity.current * frames
+        velocity.current *= FRICTION ** frames
         if (Math.abs(velocity.current) <= MIN_V) {
           velocity.current = 0
           scheduleResume()
         }
-      } else if (!interacting && !dragging && !(cb.current.isPaused?.() ?? false)) {
+      } else if (!interacting && !dragging && !reducedMotion.matches && !(cb.current.isPaused?.() ?? false)) {
         // Auto-scroll (frame-rate independent)
         offset.current -= (cb.current.getAutoSpeed() * dtMs) / 1000
       }

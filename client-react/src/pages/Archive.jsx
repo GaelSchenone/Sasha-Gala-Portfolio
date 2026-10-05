@@ -73,6 +73,7 @@ export function Archive() {
                 <ClickableImage
                   key={`archive-${index}`}
                   data-loop-start={index % archiveImages.length === 0 || undefined}
+                  aria-hidden={index >= archiveImages.length || undefined}
                   src={image.img_route}
                   alt={image.img_alt || 'Archived image'}
                   style={{ height: '100%', objectFit: 'cover' }}
